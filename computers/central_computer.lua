@@ -1,8 +1,8 @@
 -- Central Command Computer
 -- Monitors and controls all turtles in the base
 
-local Network = require("lib_network")
-local Updater = require("lib_updater")
+local Network = require("network")
+local Updater = require("updater")
 
 -- Configuration
 local HOSTNAME = "central"

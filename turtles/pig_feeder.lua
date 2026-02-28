@@ -1,9 +1,9 @@
 -- Networked Pig Feeder Turtle Program
 -- Feeds pigs in a 9x9 area and reports status to central computer
 
-local Network = require("lib_network")
-local TurtleLib = require("lib_turtle")
-local Updater = require("lib_updater")
+local Network = require("network")
+local TurtleLib = require("turtle")
+local Updater = require("updater")
 
 -- Configuration
 local FUEL_SLOT = 16
@@ -314,10 +314,10 @@ local function installStartup()
         file.write('-- Auto-start pig feeder on boot\n')
         file.write('-- Update before running\n')
         file.write('print("Checking for updates...")\n')
-        file.write('local Updater = require("lib_updater")\n')
+        file.write('local Updater = require("updater")\n')
         file.write('Updater.updateLocal()\n')
         file.write('print("Starting pig feeder daemon...")\n')
-        file.write('shell.run("pig_feeder_networked")\n')
+        file.write('shell.run("pig_feeder")\n')
         file.close()
         print("Startup file installed!")
         return true
