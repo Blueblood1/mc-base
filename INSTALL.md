@@ -5,7 +5,7 @@
 On any ComputerCraft computer or turtle, run:
 
 ```lua
-wget run https://raw.githubusercontent.com/Blueblood1/mc-base/main/installer/install.lua
+wget run https://raw.githubusercontent.com/Blueblood1/mc-base/master/installer/install.lua
 ```
 
 That's it! The installer will:

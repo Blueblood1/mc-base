@@ -3,7 +3,7 @@
 
 local GITHUB_USER = "Blueblood1"
 local GITHUB_REPO = "mc-base"
-local GITHUB_BRANCH = "main"
+local GITHUB_BRANCH = "master"
 
 -- Build GitHub raw URL
 local function buildUrl(path)

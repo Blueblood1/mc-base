@@ -6,7 +6,7 @@ local Updater = {}
 -- GitHub repository configuration
 Updater.GITHUB_USER = "Blueblood1"
 Updater.GITHUB_REPO = "mc-base"
-Updater.GITHUB_BRANCH = "main"
+Updater.GITHUB_BRANCH = "master"
 
 -- Build GitHub raw URL
 local function buildGitHubUrl(path)

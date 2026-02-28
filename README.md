@@ -19,7 +19,7 @@ A complete automation system for ComputerCraft with central monitoring, telemetr
 Run this one-liner on any ComputerCraft computer or turtle:
 
 ```lua
-wget run https://raw.githubusercontent.com/Blueblood1/mc-base/main/installer/install.lua
+wget run https://raw.githubusercontent.com/Blueblood1/mc-base/master/installer/install.lua
 ```
 
 The installer will:
