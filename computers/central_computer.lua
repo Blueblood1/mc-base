@@ -216,7 +216,7 @@ local function handleMessage(senderId, msgType, data)
         if not turtles[senderId] then
             turtles[senderId] = {
                 name = data.name or ("Turtle " .. senderId),
-                status = "unknown",
+                status = "alert",
                 telemetry = {},
                 lastUpdate = os.epoch("utc")
             }
@@ -226,6 +226,11 @@ local function handleMessage(senderId, msgType, data)
         -- Update name if provided in alert
         if data.name then
             turtles[senderId].name = data.name
+        end
+        
+        -- Update status to show there's an alert
+        if turtles[senderId].status ~= "error" then
+            turtles[senderId].status = "alert"
         end
         
         local turtleName = turtles[senderId].name
