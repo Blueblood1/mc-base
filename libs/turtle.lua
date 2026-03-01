@@ -114,34 +114,51 @@ function TurtleLib.loadFuelFromChest(direction, targetPercent)
         local item = turtle.getItemDetail(slot)
         
         if item then
+            print("Slot " .. slot .. ": " .. item.name .. " x" .. item.count)
+            
             if item.name == "minecraft:lava_bucket" then
                 -- Use all lava buckets in this slot
-                local count = item.count
-                for i = 1, count do
+                local lavaBuckets = item.count
+                print("Using " .. lavaBuckets .. " lava buckets")
+                
+                for i = 1, lavaBuckets do
                     if fuel.percent >= targetPercent then
+                        print("Target fuel reached: " .. fuel.percent .. "%")
                         break
                     end
+                    
+                    local beforeFuel = fuel.percent
                     turtle.refuel(1)
-                    success = true
                     fuel = TurtleLib.getFuelStatus()
+                    print("  Bucket " .. i .. ": " .. beforeFuel .. "% -> " .. fuel.percent .. "%")
+                    success = true
                 end
-            elseif item.name ~= "minecraft:bucket" then
-                -- Try regular fuel (coal, etc), but skip empty buckets
-                local count = turtle.getItemCount(slot)
-                for i = 1, count do
+            elseif item.name == "minecraft:bucket" then
+                -- Empty bucket, skip it
+                print("Skipping empty bucket")
+            else
+                -- Try regular fuel (coal, etc)
+                local itemCount = item.count
+                print("Trying to use " .. itemCount .. " items as fuel")
+                
+                for i = 1, itemCount do
                     if fuel.percent >= targetPercent then
                         break
                     end
-                    if not turtle.refuel(1) then
-                        break -- Not fuel
+                    
+                    if turtle.refuel(1) then
+                        success = true
+                        fuel = TurtleLib.getFuelStatus()
+                    else
+                        print("  Not fuel, stopping")
+                        break
                     end
-                    success = true
-                    fuel = TurtleLib.getFuelStatus()
                 end
             end
-            -- If it's an empty bucket (minecraft:bucket), skip it
         end
     end
+    
+    print("Final fuel: " .. fuel.percent .. "%")
     
     -- Step 3: Return everything back to chest
     for slot = 1, 16 do
