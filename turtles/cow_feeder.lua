@@ -421,8 +421,23 @@ local function mainLoop()
             print("Feeding cycle complete!")
             sendTelemetry()
             
-            -- Brief pause before next cycle
-            sleep(5)
+            -- Cooldown for breeding timeout (2 minutes = 120 seconds)
+            print("Waiting for breeding cooldown (2 minutes)...")
+            status.lastError = "Cooldown: waiting for breeding timer"
+            sendTelemetry()
+            
+            for i = 1, 120 do
+                checkCommands()
+                sleep(1)
+                
+                -- Send telemetry every 30 seconds during cooldown
+                if i % 30 == 0 then
+                    sendTelemetry()
+                end
+            end
+            
+            status.lastError = nil
+            print("Cooldown complete!")
         end
     end
 end
