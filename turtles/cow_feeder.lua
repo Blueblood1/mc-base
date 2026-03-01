@@ -236,11 +236,20 @@ local function navigateGrid()
     
     -- Navigate the 9x9 grid in vertical columns
     for col = state.col, GRID_SIZE do
-        local startRow = (col == state.col) and state.row or 1
         local goingDown = (col % 2 == 1) -- Odd columns go down, even go up
+        local startRow = state.row
+        
+        -- Reset row to correct starting position for new columns
+        if col ~= state.col then
+            if goingDown then
+                startRow = 1 -- Start at top for going down
+            else
+                startRow = GRID_SIZE -- Start at bottom for going up
+            end
+        end
         
         if goingDown then
-            -- Go down the column
+            -- Go down the column (1 to 9)
             for row = startRow, GRID_SIZE do
                 state.row = row
                 state.col = col
@@ -264,7 +273,7 @@ local function navigateGrid()
                 end
             end
         else
-            -- Go up the column
+            -- Go up the column (9 to 1)
             for row = startRow, 1, -1 do
                 state.row = row
                 state.col = col
