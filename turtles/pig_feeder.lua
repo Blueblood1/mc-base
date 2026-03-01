@@ -7,7 +7,8 @@ local Updater = require("updater")
 
 -- Configuration
 local FUEL_SLOT = 16
-local FOOD_SLOT = 1
+local FOOD_SLOTS_START = 1
+local FOOD_SLOTS_END = 15
 local GRID_SIZE = 9
 local STATE_FILE = "pig_feeder_state.txt"
 local TELEMETRY_INTERVAL = 10 -- Send telemetry every 10 seconds
@@ -168,29 +169,81 @@ local function loadFuel()
     end
 end
 
--- Load food from chest in front
-local function loadFood()
-    turtle.select(FOOD_SLOT)
-    local success = turtle.suck()
-    if not success then
-        sendAlert("Failed to load food from chest")
-        status.lastError = "No food available"
+-- Check fuel and enter fuel lock if critically low
+local function checkFuelLock()
+    local fuel = TurtleLib.getFuelStatus()
+    
+    if fuel.percent <= 5 then
+        print("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
+        sendAlert("FUEL LOCK: Critical fuel level, waiting for refuel")
+        status.lastError = "FUEL LOCK: Critical fuel"
+        sendTelemetry()
+        
+        -- Stay in fuel lock until we get above 5%
+        while fuel.percent <= 5 do
+            print("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
+            
+            -- Try to load fuel
+            turtle.select(FUEL_SLOT)
+            turtle.turnRight()
+            turtle.suck()
+            turtle.turnLeft()
+            refuel()
+            
+            -- Check fuel again
+            fuel = TurtleLib.getFuelStatus()
+            
+            -- Send telemetry and check commands
+            sendTelemetry()
+            checkCommands()
+            
+            sleep(5)
+        end
+        
+        print("Fuel lock released: " .. fuel.percent .. "%")
+        sendAlert("Fuel lock released: " .. fuel.percent .. "%")
+        status.lastError = nil
+        sendTelemetry()
     end
 end
 
--- Feed pigs below
-local function feedPigs()
-    turtle.select(FOOD_SLOT)
-    local fedCount = 0
-    while turtle.getItemCount(FOOD_SLOT) > 0 do
-        local success = turtle.placeDown()
-        if not success then
-            break
-        end
-        fedCount = fedCount + 1
-        status.foodUsed = status.foodUsed + 1
-        sleep(0.5)
+-- Load food from chest in front
+local function loadFood()
+    -- Load into any available food slot
+    for slot = FOOD_SLOTS_START, FOOD_SLOTS_END do
+        turtle.select(slot)
+        turtle.suck()
     end
+end
+
+-- Check if we have any food in any slot
+local function hasFood()
+    for slot = FOOD_SLOTS_START, FOOD_SLOTS_END do
+        if turtle.getItemCount(slot) > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+-- Feed pigs below using any food slot
+local function feedPigs()
+    local fedCount = 0
+    
+    -- Try each food slot
+    for slot = FOOD_SLOTS_START, FOOD_SLOTS_END do
+        turtle.select(slot)
+        while turtle.getItemCount(slot) > 0 do
+            local success = turtle.placeDown()
+            if not success then
+                break
+            end
+            fedCount = fedCount + 1
+            status.foodUsed = status.foodUsed + 1
+            sleep(0.5)
+        end
+    end
+    
     saveState()
     
     -- Periodic telemetry
@@ -336,6 +389,9 @@ local function mainLoop()
     while true do
         print("Starting fresh cycle...")
         
+        -- Check fuel lock BEFORE starting cycle
+        checkFuelLock()
+        
         -- Load resources
         print("Loading fuel...")
         loadFuel()
@@ -344,7 +400,7 @@ local function mainLoop()
         loadFood()
         
         -- Check if we have food
-        if turtle.getItemCount(FOOD_SLOT) == 0 then
+        if not hasFood() then
             print("No food available, waiting...")
             sendAlert("No food available, waiting for resupply")
             status.lastError = "No food available"
