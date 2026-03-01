@@ -1,5 +1,7 @@
 -- GitHub-based Installer
 -- Run this on any computer/turtle to install the automation system
+-- Usage: install [turtle_type]
+-- Example: install pig_feeder  OR  install cow_feeder
 
 local GITHUB_USER = "Blueblood1"
 local GITHUB_REPO = "mc-base"
@@ -45,6 +47,10 @@ end
 
 -- Main installation
 local function install()
+    -- Get command line argument for turtle type
+    local args = {...}
+    local turtleType = args[1]
+    
     print("=== MC Base Automation System ===")
     print("Installing from GitHub...")
     print("Repo: " .. GITHUB_USER .. "/" .. GITHUB_REPO)
@@ -55,6 +61,29 @@ local function install()
     
     if isTurtle then
         print("Detected: Turtle")
+        
+        -- If no type specified, ask user
+        if not turtleType then
+            print("")
+            print("Available turtle types:")
+            print("  1. pig_feeder - Pig feeding automation")
+            print("  2. cow_feeder - Cow feeding automation")
+            print("")
+            write("Select turtle type (1-2): ")
+            local choice = read()
+            
+            if choice == "1" then
+                turtleType = "pig_feeder"
+            elseif choice == "2" then
+                turtleType = "cow_feeder"
+            else
+                print("Invalid choice, defaulting to pig_feeder")
+                turtleType = "pig_feeder"
+            end
+        end
+        
+        print("")
+        print("Installing: " .. turtleType)
         print("")
     else
         print("Detected: Computer")
@@ -89,8 +118,8 @@ local function install()
         end
         
         print("")
-        print("Installing pig feeder...")
-        if download("turtles/pig_feeder.lua", "pig_feeder.lua") then
+        print("Installing " .. turtleType .. "...")
+        if download("turtles/" .. turtleType .. ".lua", turtleType .. ".lua") then
             success = success + 1
         else
             failed = failed + 1
@@ -101,12 +130,12 @@ local function install()
             print("")
             print("Creating startup.lua...")
             local startup = fs.open("startup.lua", "w")
-            startup.write('-- Auto-start pig feeder on boot\n')
+            startup.write('-- Auto-start ' .. turtleType .. ' on boot\n')
             startup.write('print("Checking for updates...")\n')
             startup.write('local Updater = require("updater")\n')
             startup.write('Updater.updateLocal()\n')
-            startup.write('print("Starting pig feeder...")\n')
-            startup.write('shell.run("pig_feeder")\n')
+            startup.write('print("Starting ' .. turtleType .. '...")\n')
+            startup.write('shell.run("' .. turtleType .. '")\n')
             startup.close()
             print("✓ startup.lua")
         else
@@ -147,13 +176,21 @@ local function install()
     print("")
     
     if isTurtle then
-        print("To start: pig_feeder")
+        print("To start: " .. turtleType)
         print("Or reboot to auto-start")
         print("")
         print("Setup:")
         print("1. Attach wireless modem")
-        print("2. Place fuel chest to the right")
-        print("3. Place food chest in front")
+        
+        if turtleType == "pig_feeder" then
+            print("2. Place fuel chest to the RIGHT")
+            print("3. Place food chest in FRONT")
+            print("4. Position at bottom-right of 9x9")
+        elseif turtleType == "cow_feeder" then
+            print("2. Place fuel chest to the RIGHT")
+            print("3. Place food chest to the LEFT")
+            print("4. Position at bottom-right of 9x9")
+        end
     else
         print("To start: central_computer")
         print("Or reboot to auto-start")

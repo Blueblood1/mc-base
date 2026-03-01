@@ -30,7 +30,8 @@ Updater.MANIFEST = {
     ["central_computer.lua"] = "computers/central_computer.lua",
     
     -- Turtles
-    ["pig_feeder.lua"] = "turtles/pig_feeder.lua"
+    ["pig_feeder.lua"] = "turtles/pig_feeder.lua",
+    ["cow_feeder.lua"] = "turtles/cow_feeder.lua"
 }
 
 -- Download a file from GitHub
