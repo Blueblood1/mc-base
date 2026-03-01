@@ -174,6 +174,12 @@ local function processTelemetry(turtleId, data)
     end
     
     local turtle = turtles[turtleId]
+    
+    -- Update name if provided (allows turtles to change their name)
+    if data.name then
+        turtle.name = data.name
+    end
+    
     turtle.telemetry = data
     turtle.lastUpdate = os.epoch("utc")
     turtle.status = data.status or "active"
