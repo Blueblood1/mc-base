@@ -60,9 +60,8 @@ end
 
 local function print(text)
     if useMonitor then
-        local x, y = monitor.getCursorPos()
-        monitor.setCursorPos(1, y)
         monitor.write(text)
+        local x, y = monitor.getCursorPos()
         monitor.setCursorPos(1, y + 1)
     else
         _G.print(text)
