@@ -46,9 +46,8 @@ local function download(githubPath, localFilename)
 end
 
 -- Main installation
-local function install()
+local function install(args)
     -- Get command line argument for turtle type
-    local args = {...}
     local turtleType = args[1]
     
     print("=== MC Base Automation System ===")
@@ -205,4 +204,5 @@ local function install()
 end
 
 -- Run installation
-install()
+local args = {...}
+install(args)
