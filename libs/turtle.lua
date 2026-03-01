@@ -71,6 +71,85 @@ function TurtleLib.smartRefuel(fuelSlot, threshold)
     return true
 end
 
+-- Load fuel from chest with lava bucket support
+-- Loads fuel until target percentage is reached
+-- Automatically handles lava buckets (returns empty buckets to chest)
+-- direction: "front", "right", "left", "top", "bottom"
+-- fuelSlot: which slot to use for fuel
+-- targetPercent: stop when fuel reaches this percentage (default 80)
+function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
+    targetPercent = targetPercent or 80
+    turtle.select(fuelSlot)
+    
+    -- Turn to face the chest
+    if direction == "right" then
+        turtle.turnRight()
+    elseif direction == "left" then
+        turtle.turnLeft()
+    elseif direction == "back" then
+        turtle.turnRight()
+        turtle.turnRight()
+    end
+    
+    -- Keep loading fuel until we reach target
+    local fuel = TurtleLib.getFuelStatus()
+    local success = false
+    
+    while fuel.percent < targetPercent do
+        -- Try to get fuel from chest
+        local suckSuccess = false
+        if direction == "top" then
+            suckSuccess = turtle.suckUp()
+        elseif direction == "bottom" then
+            suckSuccess = turtle.suckDown()
+        else
+            suckSuccess = turtle.suck()
+        end
+        
+        if not suckSuccess then
+            break -- No more fuel in chest
+        end
+        
+        -- Check what we got
+        local item = turtle.getItemDetail(fuelSlot)
+        if item then
+            if item.name == "minecraft:lava_bucket" then
+                -- Use lava bucket
+                turtle.refuel()
+                success = true
+                
+                -- Put empty bucket back in chest
+                if direction == "top" then
+                    turtle.dropUp()
+                elseif direction == "bottom" then
+                    turtle.dropDown()
+                else
+                    turtle.drop()
+                end
+            else
+                -- Regular fuel (coal, etc)
+                if turtle.refuel() then
+                    success = true
+                end
+            end
+        end
+        
+        fuel = TurtleLib.getFuelStatus()
+    end
+    
+    -- Turn back to original direction
+    if direction == "right" then
+        turtle.turnLeft()
+    elseif direction == "left" then
+        turtle.turnRight()
+    elseif direction == "back" then
+        turtle.turnRight()
+        turtle.turnRight()
+    end
+    
+    return success, fuel.percent
+end
+
 -- Get turtle label or ID
 function TurtleLib.getIdentifier()
     return os.getComputerLabel() or "turtle_" .. os.getComputerID()

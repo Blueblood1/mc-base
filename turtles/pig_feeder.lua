@@ -157,15 +157,11 @@ end
 
 -- Load fuel from chest on the right
 local function loadFuel()
-    turtle.select(FUEL_SLOT)
-    turtle.turnRight()
-    local success = turtle.suck()
-    turtle.turnLeft()
-    if success then
-        refuel()
-    else
-        sendAlert("Failed to load fuel from chest")
-        status.lastError = "No fuel available"
+    local success, fuelPercent = TurtleLib.loadFuelFromChest("right", FUEL_SLOT, 80)
+    
+    if not success or fuelPercent < 80 then
+        sendAlert("Could not reach 80% fuel (currently " .. fuelPercent .. "%)")
+        status.lastError = "Low fuel: " .. fuelPercent .. "%"
     end
 end
 
