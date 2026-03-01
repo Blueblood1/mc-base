@@ -413,7 +413,17 @@ local function main()
     
     -- Enter main loop (never exits)
     print("Entering main loop...")
-    mainLoop()
+    
+    -- Wrap in error handler to prevent crashes
+    while true do
+        local success, err = pcall(mainLoop)
+        if not success then
+            print("Error in main loop: " .. tostring(err))
+            sendAlert("Critical error: " .. tostring(err))
+            print("Restarting in 10 seconds...")
+            sleep(10)
+        end
+    end
 end
 
 -- Run the program
