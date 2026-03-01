@@ -326,30 +326,23 @@ local function returnHome()
     -- After column 9 (odd), we're at row 9, column 9 (front-left of grid)
     -- Still facing forward (toward front of farm)
     
-    -- Turn right to face across the columns
+    -- Turn right to face across the columns (toward front-right)
     turtle.turnRight()
     
-    -- Go back to column 1 (front-right)
+    -- Go to column 1 (front-right)
     for i = 1, GRID_SIZE - 1 do
         turtle.forward()
         refuel()
     end
     
     -- Now at row 9, column 1 (front-right of grid)
-    -- Turn around to face back toward starting position
-    turtle.turnRight()
+    -- Turn right again to face back toward starting position
     turtle.turnRight()
     
-    -- Go back to row 1 (back to starting row)
-    for i = 1, GRID_SIZE - 1 do
+    -- Go back through the grid and exit (8 rows + 2 exit steps = 10 total)
+    for i = 1, GRID_SIZE - 1 + 2 do
         turtle.forward()
         refuel()
-    end
-    
-    -- Now at row 1, column 1 (back-right, in the grid)
-    -- Back out of the grid (TWO steps)
-    for i = 1, 2 do
-        turtle.back()
     end
     
     -- Descend 2 blocks
