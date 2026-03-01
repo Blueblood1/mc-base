@@ -96,6 +96,9 @@ function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
     local success = false
     
     while fuel.percent < targetPercent do
+        -- Make sure we're using the fuel slot
+        turtle.select(fuelSlot)
+        
         -- Try to get fuel from chest
         local suckSuccess = false
         if direction == "top" then
@@ -118,7 +121,8 @@ function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
                 turtle.refuel()
                 success = true
                 
-                -- Put empty bucket back in chest
+                -- Empty bucket should now be in the slot
+                -- Put it back in chest
                 if direction == "top" then
                     turtle.dropUp()
                 elseif direction == "bottom" then
@@ -126,15 +130,50 @@ function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
                 else
                     turtle.drop()
                 end
+                
+                -- Make sure the slot is now empty
+                if turtle.getItemCount(fuelSlot) > 0 then
+                    -- Force drop everything in fuel slot
+                    if direction == "top" then
+                        turtle.dropUp()
+                    elseif direction == "bottom" then
+                        turtle.dropDown()
+                    else
+                        turtle.drop()
+                    end
+                end
             else
                 -- Regular fuel (coal, etc)
                 if turtle.refuel() then
                     success = true
+                else
+                    -- Not fuel, drop it back
+                    if direction == "top" then
+                        turtle.dropUp()
+                    elseif direction == "bottom" then
+                        turtle.dropDown()
+                    else
+                        turtle.drop()
+                    end
                 end
             end
         end
         
         fuel = TurtleLib.getFuelStatus()
+    end
+    
+    -- Final safety check - make sure fuel slot is empty or only has fuel
+    turtle.select(fuelSlot)
+    local finalItem = turtle.getItemDetail(fuelSlot)
+    if finalItem and finalItem.name == "minecraft:bucket" then
+        -- Drop any remaining empty buckets
+        if direction == "top" then
+            turtle.dropUp()
+        elseif direction == "bottom" then
+            turtle.dropDown()
+        else
+            turtle.drop()
+        end
     end
     
     -- Turn back to original direction
