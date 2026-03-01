@@ -212,7 +212,23 @@ local function handleMessage(senderId, msgType, data)
             turtles[senderId].lastUpdate = os.epoch("utc")
         end
     elseif msgType == Network.MSG_TYPES.ALERT then
-        local turtleName = turtles[senderId] and turtles[senderId].name or ("Turtle " .. senderId)
+        -- Ensure turtle is registered
+        if not turtles[senderId] then
+            turtles[senderId] = {
+                name = data.name or ("Turtle " .. senderId),
+                status = "unknown",
+                telemetry = {},
+                lastUpdate = os.epoch("utc")
+            }
+            stats.totalTurtles = stats.totalTurtles + 1
+        end
+        
+        -- Update name if provided in alert
+        if data.name then
+            turtles[senderId].name = data.name
+        end
+        
+        local turtleName = turtles[senderId].name
         table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. ": " .. data.message)
         updateDisplay()
     end

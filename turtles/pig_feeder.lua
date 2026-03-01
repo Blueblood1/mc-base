@@ -104,9 +104,15 @@ end
 local function sendAlert(message)
     status.lastError = message
     if centralId then
-        Network.send(centralId, Network.MSG_TYPES.ALERT, {message = message})
+        Network.send(centralId, Network.MSG_TYPES.ALERT, {
+            name = TURTLE_NAME,
+            message = message
+        })
     else
-        Network.broadcast(Network.MSG_TYPES.ALERT, {message = message})
+        Network.broadcast(Network.MSG_TYPES.ALERT, {
+            name = TURTLE_NAME,
+            message = message
+        })
     end
 end
 
