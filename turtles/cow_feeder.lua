@@ -323,28 +323,30 @@ local function returnHome()
         return
     end
     
-    -- After column 9, we're at row 1 (top-left of grid)
-    -- Need to get back to bottom-right starting position
+    -- After column 9 (odd), we're at row 9, column 9 (front-left of grid)
+    -- Still facing forward (toward front of farm)
     
-    -- First, go back down to row 9 (bottom of grid)
+    -- Turn right to face across the columns
+    turtle.turnRight()
+    
+    -- Go back to column 1 (front-right)
     for i = 1, GRID_SIZE - 1 do
         turtle.forward()
         refuel()
     end
     
-    -- Now at row 9, column 9 (bottom-left)
-    -- Turn right to face the columns
+    -- Now at row 9, column 1 (front-right of grid)
+    -- Turn around to face back toward starting position
+    turtle.turnRight()
     turtle.turnRight()
     
-    -- Go back to column 1 (bottom-right)
+    -- Go back to row 1 (back to starting row)
     for i = 1, GRID_SIZE - 1 do
         turtle.forward()
         refuel()
     end
     
-    -- Turn right to face original direction (away from grid)
-    turtle.turnRight()
-    
+    -- Now at row 1, column 1 (back-right, in the grid)
     -- Back out of the grid (TWO steps)
     for i = 1, 2 do
         turtle.back()
