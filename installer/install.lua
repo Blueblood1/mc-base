@@ -98,12 +98,14 @@ local function install(args)
         success = success + 1
     else
         failed = failed + 1
+        print("FAILED: network.lua")
     end
     
     if download("libs/updater.lua", "updater.lua") then
         success = success + 1
     else
         failed = failed + 1
+        print("FAILED: updater.lua")
     end
     
     if isTurtle then
@@ -114,6 +116,7 @@ local function install(args)
             success = success + 1
         else
             failed = failed + 1
+            print("FAILED: turtle.lua")
         end
         
         print("")
@@ -122,6 +125,7 @@ local function install(args)
             success = success + 1
         else
             failed = failed + 1
+            print("FAILED: " .. turtleType .. ".lua")
         end
         
         -- Create startup file
@@ -148,6 +152,7 @@ local function install(args)
             success = success + 1
         else
             failed = failed + 1
+            print("FAILED: central_computer.lua")
         end
         
         -- Create startup file
