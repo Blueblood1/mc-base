@@ -115,15 +115,23 @@ function TurtleLib.loadFuelFromChest(direction, targetPercent)
         
         if item then
             if item.name == "minecraft:lava_bucket" then
-                -- Use lava buckets
-                while turtle.getItemCount(slot) > 0 and fuel.percent < targetPercent do
+                -- Use all lava buckets in this slot
+                local count = item.count
+                for i = 1, count do
+                    if fuel.percent >= targetPercent then
+                        break
+                    end
                     turtle.refuel(1)
                     success = true
                     fuel = TurtleLib.getFuelStatus()
                 end
-            else
-                -- Try regular fuel (coal, etc)
-                while turtle.getItemCount(slot) > 0 and fuel.percent < targetPercent do
+            elseif item.name ~= "minecraft:bucket" then
+                -- Try regular fuel (coal, etc), but skip empty buckets
+                local count = turtle.getItemCount(slot)
+                for i = 1, count do
+                    if fuel.percent >= targetPercent then
+                        break
+                    end
                     if not turtle.refuel(1) then
                         break -- Not fuel
                     end
@@ -131,6 +139,7 @@ function TurtleLib.loadFuelFromChest(direction, targetPercent)
                     fuel = TurtleLib.getFuelStatus()
                 end
             end
+            -- If it's an empty bucket (minecraft:bucket), skip it
         end
     end
     
