@@ -157,7 +157,16 @@ end
 
 -- Load fuel from chest on the right
 local function loadFuel()
-    local success, fuelPercent = TurtleLib.loadFuelFromChest("right", FUEL_SLOT, 80)
+    -- First, dump any food back to food chest (in front)
+    for slot = FOOD_SLOTS_START, FOOD_SLOTS_END do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
+            turtle.drop()
+        end
+    end
+    
+    -- Now load fuel
+    local success, fuelPercent = TurtleLib.loadFuelFromChest("right", 80)
     
     if not success or fuelPercent < 80 then
         sendAlert("Could not reach 80% fuel (currently " .. fuelPercent .. "%)")

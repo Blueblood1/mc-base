@@ -73,13 +73,11 @@ end
 
 -- Load fuel from chest with lava bucket support
 -- Loads fuel until target percentage is reached
--- Automatically handles lava buckets (returns empty buckets to chest)
+-- Uses all inventory slots temporarily, then returns unused items
 -- direction: "front", "right", "left", "top", "bottom"
--- fuelSlot: which slot to use for fuel
 -- targetPercent: stop when fuel reaches this percentage (default 80)
-function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
+function TurtleLib.loadFuelFromChest(direction, targetPercent)
     targetPercent = targetPercent or 80
-    turtle.select(fuelSlot)
     
     -- Turn to face the chest
     if direction == "right" then
@@ -91,19 +89,55 @@ function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
         turtle.turnRight()
     end
     
-    -- Keep loading fuel until we reach target
+    -- Step 1: Fill entire inventory with fuel from chest
+    for slot = 1, 16 do
+        turtle.select(slot)
+        if direction == "top" then
+            turtle.suckUp()
+        elseif direction == "bottom" then
+            turtle.suckDown()
+        else
+            turtle.suck()
+        end
+    end
+    
+    -- Step 2: Consume fuel from inventory until we hit target
     local fuel = TurtleLib.getFuelStatus()
     local success = false
-    local attempts = 0
-    local maxAttempts = 64 -- Prevent infinite loops
     
-    while fuel.percent < targetPercent and attempts < maxAttempts do
-        attempts = attempts + 1
+    for slot = 1, 16 do
+        if fuel.percent >= targetPercent then
+            break
+        end
         
-        -- Make sure we're using the fuel slot and it's empty
-        turtle.select(fuelSlot)
-        if turtle.getItemCount(fuelSlot) > 0 then
-            -- Slot not empty, drop whatever is there
+        turtle.select(slot)
+        local item = turtle.getItemDetail(slot)
+        
+        if item then
+            if item.name == "minecraft:lava_bucket" then
+                -- Use lava buckets
+                while turtle.getItemCount(slot) > 0 and fuel.percent < targetPercent do
+                    turtle.refuel(1)
+                    success = true
+                    fuel = TurtleLib.getFuelStatus()
+                end
+            else
+                -- Try regular fuel (coal, etc)
+                while turtle.getItemCount(slot) > 0 and fuel.percent < targetPercent do
+                    if not turtle.refuel(1) then
+                        break -- Not fuel
+                    end
+                    success = true
+                    fuel = TurtleLib.getFuelStatus()
+                end
+            end
+        end
+    end
+    
+    -- Step 3: Return everything back to chest
+    for slot = 1, 16 do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
             if direction == "top" then
                 turtle.dropUp()
             elseif direction == "bottom" then
@@ -112,65 +146,6 @@ function TurtleLib.loadFuelFromChest(direction, fuelSlot, targetPercent)
                 turtle.drop()
             end
         end
-        
-        -- Try to get ONE item from chest
-        local suckSuccess = false
-        if direction == "top" then
-            suckSuccess = turtle.suckUp(1)
-        elseif direction == "bottom" then
-            suckSuccess = turtle.suckDown(1)
-        else
-            suckSuccess = turtle.suck(1)
-        end
-        
-        if not suckSuccess then
-            break -- No more items in chest
-        end
-        
-        -- Check what we got
-        local item = turtle.getItemDetail(fuelSlot)
-        if item then
-            if item.name == "minecraft:lava_bucket" then
-                -- Use lava bucket
-                turtle.refuel()
-                success = true
-                
-                -- Now we have an empty bucket, put it back
-                sleep(0.1) -- Small delay to ensure refuel completed
-                if direction == "top" then
-                    turtle.dropUp()
-                elseif direction == "bottom" then
-                    turtle.dropDown()
-                else
-                    turtle.drop()
-                end
-            elseif item.name == "minecraft:bucket" then
-                -- Empty bucket, put it back immediately
-                if direction == "top" then
-                    turtle.dropUp()
-                elseif direction == "bottom" then
-                    turtle.dropDown()
-                else
-                    turtle.drop()
-                end
-            else
-                -- Try to use as fuel (coal, etc)
-                if turtle.refuel() then
-                    success = true
-                else
-                    -- Not fuel, put it back
-                    if direction == "top" then
-                        turtle.dropUp()
-                    elseif direction == "bottom" then
-                        turtle.dropDown()
-                    else
-                        turtle.drop()
-                    end
-                end
-            end
-        end
-        
-        fuel = TurtleLib.getFuelStatus()
     end
     
     -- Turn back to original direction
