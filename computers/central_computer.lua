@@ -73,7 +73,7 @@ local function drawHeader()
     setTextColor(colors.yellow)
     print("=== CENTRAL COMMAND SYSTEM ===")
     print("Computer ID: " .. os.getComputerID())
-    print("Time: " .. textutils.formatTime(os.time(), false))
+    print("Time: " .. os.date("%H:%M:%S"))
     print("")
     setTextColor(colors.white)
 end
