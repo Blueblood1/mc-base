@@ -11,7 +11,7 @@ local FOOD_SLOT = 1
 local GRID_SIZE = 9
 local STATE_FILE = "cow_feeder_state.txt"
 local TELEMETRY_INTERVAL = 10 -- Send telemetry every 10 seconds
-local TURTLE_NAME = "Cow Feeder"
+local TURTLE_NAME = "Cow Feeder" 
 
 -- Central computer ID (will be discovered)
 local centralId = nil
@@ -323,20 +323,27 @@ local function returnHome()
         return
     end
     
-    -- We're at column 9, row 1 (top of last column)
-    -- Turn around to face back
-    turtle.turnRight()
-    turtle.turnRight()
+    -- After column 9, we're at row 1 (top-left of grid)
+    -- Need to get back to bottom-right starting position
     
-    -- Go back to first column
+    -- First, go back down to row 9 (bottom of grid)
     for i = 1, GRID_SIZE - 1 do
         turtle.forward()
         refuel()
     end
     
-    -- Turn to face original direction
-    turtle.turnLeft()
-    turtle.turnLeft()
+    -- Now at row 9, column 9 (bottom-left)
+    -- Turn right to face the columns
+    turtle.turnRight()
+    
+    -- Go back to column 1 (bottom-right)
+    for i = 1, GRID_SIZE - 1 do
+        turtle.forward()
+        refuel()
+    end
+    
+    -- Turn right to face original direction (away from grid)
+    turtle.turnRight()
     
     -- Back out of the grid (TWO steps)
     for i = 1, 2 do
