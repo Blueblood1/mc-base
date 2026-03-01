@@ -350,6 +350,10 @@ local function returnHome()
         turtle.down()
     end
     
+    -- Turn around to face the farm again (original orientation)
+    turtle.turnRight()
+    turtle.turnRight()
+    
     -- Clear state - we're done
     clearState()
     state.phase = "idle"
