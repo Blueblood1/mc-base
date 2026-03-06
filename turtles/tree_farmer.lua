@@ -541,12 +541,19 @@ local function harvestTree()
     
     print("Cleared 4th column, total height: " .. state.treeHeight)
     
-    -- Phase 3: Descend back down, breaking any remaining logs in front
+    -- Phase 3: Descend back down, breaking any remaining logs below and in front
     for height = state.treeHeight, 1, -1 do
+        -- Break any log below before descending
+        local success, data = turtle.inspectDown()
+        if success and data.name and data.name:find("log") then
+            turtle.digDown()
+            logsThisTree = logsThisTree + 1
+        end
+        
         turtle.down()
         
         -- Break any log in front while descending
-        local success, data = turtle.inspect()
+        success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
             turtle.dig()
             logsThisTree = logsThisTree + 1
