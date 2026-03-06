@@ -426,64 +426,87 @@ local function harvestTree()
     logsThisTree = logsThisTree + 1
     turtle.forward()
     
-    -- Now mine upward through the tree
+    -- Phase 1: Mine upward, clearing 3 columns (above, front, and right side)
     while true do
-        local success, data = turtle.inspectUp()
+        local hasLogAbove = false
+        local hasLogFront = false
+        local hasLogRight = false
         
-        -- Check if there's a log above
+        -- Check and dig above
+        local success, data = turtle.inspectUp()
         if success and data.name and data.name:find("log") then
             turtle.digUp()
-            turtle.up()
-            state.treeHeight = state.treeHeight + 1
             logsThisTree = logsThisTree + 1
-            saveState()
-            checkCommands()
-        else
-            -- No more logs above, we're done going up
+            hasLogAbove = true
+        end
+        
+        -- Check and dig in front
+        success, data = turtle.inspect()
+        if success and data.name and data.name:find("log") then
+            turtle.dig()
+            logsThisTree = logsThisTree + 1
+            hasLogFront = true
+        end
+        
+        -- Check and dig to the right
+        turtle.turnRight()
+        success, data = turtle.inspect()
+        if success and data.name and data.name:find("log") then
+            turtle.dig()
+            logsThisTree = logsThisTree + 1
+            hasLogRight = true
+        end
+        turtle.turnLeft()
+        
+        -- If no logs in any of the three directions, we're near the top
+        if not hasLogAbove and not hasLogFront and not hasLogRight then
             break
         end
+        
+        -- Move up for next iteration
+        turtle.up()
+        state.treeHeight = state.treeHeight + 1
+        saveState()
+        checkCommands()
         
         if state.treeHeight % 5 == 0 then
             sendTelemetry()
         end
     end
     
-    print("Reached top at height: " .. state.treeHeight)
+    print("Reached near top at height: " .. state.treeHeight)
     
-    -- Now mine the other 3 logs in the 2x2 at each level going down
-    for height = state.treeHeight, 1, -1 do
-        -- We're at front-left position, mine the other 3 positions
-        
-        -- Mine front-right (turn right and dig)
-        turtle.turnRight()
+    -- Phase 2: Move forward and turn right to access the 4th column
+    turtle.forward()
+    turtle.turnRight()
+    
+    -- Mine the 4th column going upward
+    while true do
         local success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
             turtle.dig()
             logsThisTree = logsThisTree + 1
+            turtle.up()
+            state.treeHeight = state.treeHeight + 1
+            saveState()
+            checkCommands()
+        else
+            -- No more logs above in this column
+            break
         end
+    end
+    
+    print("Cleared 4th column, total height: " .. state.treeHeight)
+    
+    -- Phase 3: Descend back down, breaking any remaining logs in front
+    for height = state.treeHeight, 1, -1 do
+        turtle.down()
         
-        -- Mine back-right (turn right and dig)
-        turtle.turnRight()
-        success, data = turtle.inspect()
+        -- Break any log in front while descending
+        local success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
             turtle.dig()
             logsThisTree = logsThisTree + 1
-        end
-        
-        -- Mine back-left (turn right and dig)
-        turtle.turnRight()
-        success, data = turtle.inspect()
-        if success and data.name and data.name:find("log") then
-            turtle.dig()
-            logsThisTree = logsThisTree + 1
-        end
-        
-        -- Face forward again (turn right to complete the circle)
-        turtle.turnRight()
-        
-        -- Descend one level
-        if height > 1 then
-            turtle.down()
         end
         
         checkCommands()
@@ -493,7 +516,11 @@ local function harvestTree()
     status.logsCollected = status.logsCollected + logsThisTree
     status.treesHarvested = status.treesHarvested + 1
     
-    -- Return to starting position (back 4 blocks - 3 from initial movement + 1 from entering tree)
+    -- Return to starting position
+    -- We're facing right, moved forward once from the front-left position
+    -- So: back up 1, turn left to face original direction, back up 4 blocks
+    turtle.back()
+    turtle.turnLeft()
     for i = 1, 4 do
         turtle.back()
     end
