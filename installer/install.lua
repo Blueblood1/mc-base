@@ -67,14 +67,17 @@ local function install(args)
             print("Available turtle types:")
             print("  1. pig_feeder - Pig feeding automation")
             print("  2. cow_feeder - Cow feeding automation")
+            print("  3. tree_farmer - Spruce tree farming")
             print("")
-            write("Select turtle type (1-2): ")
+            write("Select turtle type (1-3): ")
             local choice = read()
             
             if choice == "1" then
                 turtleType = "pig_feeder"
             elseif choice == "2" then
                 turtleType = "cow_feeder"
+            elseif choice == "3" then
+                turtleType = "tree_farmer"
             else
                 print("Invalid choice, defaulting to pig_feeder")
                 turtleType = "pig_feeder"
@@ -194,6 +197,11 @@ local function install(args)
             print("2. Place fuel chest to the RIGHT")
             print("3. Place food chest to the LEFT")
             print("4. Position at bottom-right of 9x9")
+        elseif turtleType == "tree_farmer" then
+            print("2. Place fuel chest to the RIGHT")
+            print("3. Place sapling chest to the LEFT")
+            print("4. Place bonemeal chest BEHIND")
+            print("5. Face forward toward planting area")
         end
     else
         print("To start: central_computer")
