@@ -476,11 +476,44 @@ local function harvestTree()
     
     print("Reached near top at height: " .. state.treeHeight)
     
-    -- Phase 2: Move forward and turn right to access the 4th column
+    -- Phase 2: Move forward to access the 4th column area
     turtle.forward()
-    turtle.turnRight()
     
-    -- Mine the 4th column going upward
+    -- Check if there's wood above us, if so mine upward breaking right side too
+    local success, data = turtle.inspectUp()
+    if success and data.name and data.name:find("log") then
+        -- There's wood above, mine upward breaking right side
+        while true do
+            -- Dig above
+            success, data = turtle.inspectUp()
+            if success and data.name and data.name:find("log") then
+                turtle.digUp()
+                logsThisTree = logsThisTree + 1
+            else
+                -- No more wood above
+                break
+            end
+            
+            -- Move up
+            turtle.up()
+            state.treeHeight = state.treeHeight + 1
+            saveState()
+            
+            -- Dig to the right
+            turtle.turnRight()
+            success, data = turtle.inspect()
+            if success and data.name and data.name:find("log") then
+                turtle.dig()
+                logsThisTree = logsThisTree + 1
+            end
+            turtle.turnLeft()
+            
+            checkCommands()
+        end
+    end
+    
+    -- Now turn right to face the 4th column and mine it going upward
+    turtle.turnRight()
     while true do
         local success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
@@ -491,7 +524,7 @@ local function harvestTree()
             saveState()
             checkCommands()
         else
-            -- No more logs above in this column
+            -- No more logs in this column
             break
         end
     end
