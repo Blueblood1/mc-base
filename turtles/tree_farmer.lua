@@ -287,45 +287,42 @@ local function placeSaplings()
     state.phase = "planting"
     saveState()
     
-    -- Move forward one
+    -- Move forward twice
     if not turtle.forward() then
-        sendAlert("Blocked while moving to planting position")
+        sendAlert("Blocked while moving to planting position (step 1)")
         status.blockedCount = status.blockedCount + 1
         sleep(5)
         turtle.forward()
     end
     
-    -- Place sapling at position 1 (front-right)
+    if not turtle.forward() then
+        sendAlert("Blocked while moving to planting position (step 2)")
+        status.blockedCount = status.blockedCount + 1
+        sleep(5)
+        turtle.forward()
+    end
+    
+    -- Place sapling in front (position 1)
     turtle.select(SAPLING_SLOTS_START)
-    turtle.placeDown()
+    turtle.place()
     
-    -- Move left to position 2 (front-left)
-    turtle.turnLeft()
-    turtle.forward()
+    -- Turn right, place sapling (position 2)
     turtle.turnRight()
-    
-    -- Place sapling at position 2
     turtle.select(SAPLING_SLOTS_START + 1)
-    turtle.placeDown()
+    turtle.place()
     
-    -- Move back to position 3 (back-left)
-    turtle.back()
-    
-    -- Place sapling at position 3
-    turtle.select(SAPLING_SLOTS_START + 2)
-    turtle.placeDown()
-    
-    -- Move right to position 4 (back-right)
-    turtle.turnRight()
-    turtle.forward()
+    -- Turn left, move backwards 1, turn right, place sapling in front (position 3)
     turtle.turnLeft()
+    turtle.back()
+    turtle.turnRight()
+    turtle.select(SAPLING_SLOTS_START + 2)
+    turtle.place()
     
-    -- Place sapling at position 4
+    -- Turn left, move backwards 1, place sapling in front (position 4)
+    turtle.turnLeft()
+    turtle.back()
     turtle.select(SAPLING_SLOTS_START + 3)
-    turtle.placeDown()
-    
-    -- Return to front-right position (position 1)
-    turtle.forward()
+    turtle.place()
     
     print("2x2 saplings planted")
 end
@@ -339,32 +336,65 @@ local function growTree()
     local attempts = 0
     local maxAttempts = 200
     
-    while isSapling() and attempts < maxAttempts do
-        -- Find a bonemeal slot
-        local bonemealSlot = nil
-        for slot = BONEMEAL_SLOTS_START, BONEMEAL_SLOTS_END do
-            if turtle.getItemCount(slot) > 0 then
-                bonemealSlot = slot
-                break
+    -- Switch to bonemeal slot
+    local bonemealSlot = nil
+    for slot = BONEMEAL_SLOTS_START, BONEMEAL_SLOTS_END do
+        if turtle.getItemCount(slot) > 0 then
+            bonemealSlot = slot
+            break
+        end
+    end
+    
+    if not bonemealSlot then
+        sendAlert("No bonemeal available")
+        status.lastError = "No bonemeal"
+        return false
+    end
+    
+    turtle.select(bonemealSlot)
+    
+    -- Use bonemeal until we detect a log (not a sapling anymore)
+    while attempts < maxAttempts do
+        local success, data = turtle.inspect()
+        
+        -- Check if it's still a sapling
+        if success and data.name and data.name:find("sapling") then
+            -- Still a sapling, use more bonemeal
+            turtle.place()
+            status.bonemealUsed = status.bonemealUsed + 1
+            attempts = attempts + 1
+            sleep(0.5)
+            
+            -- Check if we need to switch to another bonemeal slot
+            if turtle.getItemCount(bonemealSlot) == 0 then
+                bonemealSlot = nil
+                for slot = BONEMEAL_SLOTS_START, BONEMEAL_SLOTS_END do
+                    if turtle.getItemCount(slot) > 0 then
+                        bonemealSlot = slot
+                        turtle.select(bonemealSlot)
+                        break
+                    end
+                end
+                
+                if not bonemealSlot then
+                    sendAlert("Out of bonemeal while growing tree")
+                    status.lastError = "Out of bonemeal"
+                    return false
+                end
             end
-        end
-        
-        if not bonemealSlot then
-            sendAlert("Out of bonemeal while growing tree")
-            status.lastError = "Out of bonemeal"
-            return false
-        end
-        
-        turtle.select(bonemealSlot)
-        turtle.place()
-        status.bonemealUsed = status.bonemealUsed + 1
-        attempts = attempts + 1
-        sleep(0.5)
-        
-        checkCommands()
-        
-        if attempts % 20 == 0 then
-            sendTelemetry()
+            
+            checkCommands()
+            
+            if attempts % 20 == 0 then
+                sendTelemetry()
+            end
+        elseif success and data.name and data.name:find("log") then
+            -- Tree has grown! We detected a log
+            print("Tree grown! Used " .. attempts .. " bonemeal")
+            return true
+        else
+            -- Something else is there or nothing at all
+            sleep(0.5)
         end
     end
     
@@ -374,7 +404,6 @@ local function growTree()
         return false
     end
     
-    print("Tree grown! Used " .. attempts .. " bonemeal")
     return true
 end
 
@@ -387,7 +416,13 @@ local function harvestTree()
     print("Harvesting tree...")
     local logsThisTree = 0
     
-    -- Mine upward through the tree
+    -- We're facing the front-left log of the 2x2
+    -- Dig it and move into that position
+    turtle.dig()
+    logsThisTree = logsThisTree + 1
+    turtle.forward()
+    
+    -- Now mine upward through the tree
     while true do
         local success, data = turtle.inspectUp()
         
@@ -413,39 +448,34 @@ local function harvestTree()
     
     -- Now mine the other 3 logs in the 2x2 at each level going down
     for height = state.treeHeight, 1, -1 do
-        -- We're at front-right position, mine the other 3 positions
+        -- We're at front-left position, mine the other 3 positions
         
-        -- Move left to front-left
-        turtle.turnLeft()
+        -- Mine front-right (turn right and dig)
+        turtle.turnRight()
         local success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
             turtle.dig()
             logsThisTree = logsThisTree + 1
         end
-        turtle.forward()
-        turtle.turnRight()
         
-        -- Mine back-left
+        -- Mine back-right (turn right and dig)
+        turtle.turnRight()
         success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
             turtle.dig()
             logsThisTree = logsThisTree + 1
         end
         
-        -- Move right to back-right
+        -- Mine back-left (turn right and dig)
         turtle.turnRight()
-        turtle.forward()
-        turtle.turnLeft()
-        
-        -- Mine back-right
         success, data = turtle.inspect()
         if success and data.name and data.name:find("log") then
             turtle.dig()
             logsThisTree = logsThisTree + 1
         end
         
-        -- Return to front-right position
-        turtle.forward()
+        -- Face forward again (turn right to complete the circle)
+        turtle.turnRight()
         
         -- Descend one level
         if height > 1 then
@@ -459,7 +489,9 @@ local function harvestTree()
     status.logsCollected = status.logsCollected + logsThisTree
     status.treesHarvested = status.treesHarvested + 1
     
-    -- Return to starting position (back one from planting area)
+    -- Return to starting position (back 3 blocks)
+    turtle.back()
+    turtle.back()
     turtle.back()
     
     clearState()
