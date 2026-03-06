@@ -588,15 +588,37 @@ local function depositItems()
     
     print("Depositing items...")
     
-    -- Deposit logs and other items to left chest (sapling chest)
-    turtle.turnLeft()
-    for slot = SAPLING_SLOTS_START, BONEMEAL_SLOTS_END do
+    -- Deposit logs into chest below
+    for slot = 1, 16 do
         turtle.select(slot)
         local item = turtle.getItemDetail(slot)
-        if item and not item.name:find("sapling") and not item.name:find("bone_meal") then
+        if item and item.name:find("log") then
+            turtle.dropDown()
+        end
+    end
+    
+    -- Return any leftover saplings to left chest
+    turtle.turnLeft()
+    for slot = SAPLING_SLOTS_START, SAPLING_SLOTS_END do
+        turtle.select(slot)
+        local item = turtle.getItemDetail(slot)
+        if item and item.name:find("sapling") then
             turtle.drop()
         end
     end
+    turtle.turnRight()
+    
+    -- Return any leftover bonemeal to back chest
+    turtle.turnRight()
+    turtle.turnRight()
+    for slot = BONEMEAL_SLOTS_START, BONEMEAL_SLOTS_END do
+        turtle.select(slot)
+        local item = turtle.getItemDetail(slot)
+        if item and item.name:find("bone") then
+            turtle.drop()
+        end
+    end
+    turtle.turnRight()
     turtle.turnRight()
     
     print("Items deposited")
