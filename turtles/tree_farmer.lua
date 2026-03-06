@@ -234,9 +234,10 @@ end
 -- Load saplings from chest on the left
 local function loadSaplings()
     turtle.turnLeft()
+    -- Only load into the 4 sapling slots
     for slot = SAPLING_SLOTS_START, SAPLING_SLOTS_END do
         turtle.select(slot)
-        turtle.suck(16)
+        turtle.suck(1) -- Only take 1 sapling per slot
     end
     turtle.turnRight()
 end
@@ -287,42 +288,45 @@ local function placeSaplings()
     state.phase = "planting"
     saveState()
     
-    -- Move forward twice
-    if not turtle.forward() then
-        sendAlert("Blocked while moving to planting position (step 1)")
-        status.blockedCount = status.blockedCount + 1
-        sleep(5)
-        turtle.forward()
-    end
-    
-    if not turtle.forward() then
-        sendAlert("Blocked while moving to planting position (step 2)")
-        status.blockedCount = status.blockedCount + 1
-        sleep(5)
-        turtle.forward()
+    -- Move forward three times
+    for i = 1, 3 do
+        if not turtle.forward() then
+            sendAlert("Blocked while moving to planting position (step " .. i .. ")")
+            status.blockedCount = status.blockedCount + 1
+            sleep(5)
+            turtle.forward()
+        end
     end
     
     -- Turn right and place sapling (position 1)
     turtle.turnRight()
     turtle.select(SAPLING_SLOTS_START)
-    turtle.place()
+    if not turtle.place() then
+        print("Failed to place sapling 1")
+    end
     
     -- Turn left, move backwards 1, place sapling (position 2)
     turtle.turnLeft()
     turtle.back()
     turtle.select(SAPLING_SLOTS_START + 1)
-    turtle.place()
+    if not turtle.place() then
+        print("Failed to place sapling 2")
+    end
     
     -- Turn right, place sapling in front (position 3)
     turtle.turnRight()
     turtle.select(SAPLING_SLOTS_START + 2)
-    turtle.place()
+    if not turtle.place() then
+        print("Failed to place sapling 3")
+    end
     
     -- Turn left, move backwards 1, place sapling in front (position 4)
     turtle.turnLeft()
     turtle.back()
     turtle.select(SAPLING_SLOTS_START + 3)
-    turtle.place()
+    if not turtle.place() then
+        print("Failed to place sapling 4")
+    end
     
     print("2x2 saplings planted")
 end
@@ -489,10 +493,10 @@ local function harvestTree()
     status.logsCollected = status.logsCollected + logsThisTree
     status.treesHarvested = status.treesHarvested + 1
     
-    -- Return to starting position (back 3 blocks)
-    turtle.back()
-    turtle.back()
-    turtle.back()
+    -- Return to starting position (back 4 blocks - 3 from initial movement + 1 from entering tree)
+    for i = 1, 4 do
+        turtle.back()
+    end
     
     clearState()
     state.phase = "idle"
