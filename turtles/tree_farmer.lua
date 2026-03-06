@@ -514,17 +514,27 @@ local function harvestTree()
     
     -- Now turn right to face the 4th column and mine it going upward
     turtle.turnRight()
+    
+    -- Dig into the 4th column and move into it
+    local success, data = turtle.inspect()
+    if success and data.name and data.name:find("log") then
+        turtle.dig()
+        logsThisTree = logsThisTree + 1
+    end
+    turtle.forward()
+    
+    -- Mine upward from within the 4th column
     while true do
-        local success, data = turtle.inspect()
+        local success, data = turtle.inspectUp()
         if success and data.name and data.name:find("log") then
-            turtle.dig()
+            turtle.digUp()
             logsThisTree = logsThisTree + 1
             turtle.up()
             state.treeHeight = state.treeHeight + 1
             saveState()
             checkCommands()
         else
-            -- No more logs in this column
+            -- No more logs above in this column
             break
         end
     end
@@ -550,8 +560,8 @@ local function harvestTree()
     status.treesHarvested = status.treesHarvested + 1
     
     -- Return to starting position
-    -- We're facing right, moved forward once from the front-left position
-    -- So: back up 1, turn left to face original direction, back up 4 blocks
+    -- We're in the 4th column facing right
+    -- Back up 1 to exit the column, turn left to face original direction, back up 4 blocks
     turtle.back()
     turtle.turnLeft()
     for i = 1, 4 do
