@@ -143,16 +143,49 @@ local function checkCommands()
     end
 end
 
--- Refuel from the last slot
+-- Refuel from the last slot (only if it's actually fuel)
 local function refuel()
     turtle.select(FUEL_SLOT)
-    if turtle.getItemCount(FUEL_SLOT) > 0 then
-        turtle.refuel(1)
+    local item = turtle.getItemDetail(FUEL_SLOT)
+    if item and turtle.getItemCount(FUEL_SLOT) > 0 then
+        -- Only refuel if it's not a sapling or bonemeal
+        if not item.name:find("sapling") and not item.name:find("bone") then
+            turtle.refuel(1)
+        end
     end
 end
 
 -- Load fuel from chest on the right
 local function loadFuel()
+    -- First, ensure sapling and bonemeal slots are empty by returning items
+    turtle.turnLeft()
+    for slot = SAPLING_SLOTS_START, BONEMEAL_SLOTS_END do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
+            local item = turtle.getItemDetail(slot)
+            if item and item.name:find("sapling") then
+                turtle.drop()
+            end
+        end
+    end
+    turtle.turnRight()
+    
+    -- Return bonemeal to back chest
+    turtle.turnRight()
+    turtle.turnRight()
+    for slot = BONEMEAL_SLOTS_START, BONEMEAL_SLOTS_END do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
+            local item = turtle.getItemDetail(slot)
+            if item and item.name:find("bone") then
+                turtle.drop()
+            end
+        end
+    end
+    turtle.turnRight()
+    turtle.turnRight()
+    
+    -- Now load fuel safely
     local success, fuelPercent = TurtleLib.loadFuelFromChest("right", 80)
     
     if not success or fuelPercent < 80 then
@@ -174,11 +207,16 @@ local function checkFuelLock()
         while fuel.percent <= 5 do
             print("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
             
-            turtle.select(FUEL_SLOT)
+            -- Try to load fuel from chest
             turtle.turnRight()
+            turtle.select(FUEL_SLOT)
             turtle.suck()
             turtle.turnLeft()
-            refuel()
+            
+            -- Try to refuel if we got something
+            if turtle.getItemCount(FUEL_SLOT) > 0 then
+                turtle.refuel()
+            end
             
             fuel = TurtleLib.getFuelStatus()
             sendTelemetry()
@@ -256,7 +294,6 @@ local function placeSaplings()
         sleep(5)
         turtle.forward()
     end
-    refuel()
     
     -- Place sapling at position 1 (front-right)
     turtle.select(SAPLING_SLOTS_START)
@@ -266,7 +303,6 @@ local function placeSaplings()
     turtle.turnLeft()
     turtle.forward()
     turtle.turnRight()
-    refuel()
     
     -- Place sapling at position 2
     turtle.select(SAPLING_SLOTS_START + 1)
@@ -274,7 +310,6 @@ local function placeSaplings()
     
     -- Move back to position 3 (back-left)
     turtle.back()
-    refuel()
     
     -- Place sapling at position 3
     turtle.select(SAPLING_SLOTS_START + 2)
@@ -284,7 +319,6 @@ local function placeSaplings()
     turtle.turnRight()
     turtle.forward()
     turtle.turnLeft()
-    refuel()
     
     -- Place sapling at position 4
     turtle.select(SAPLING_SLOTS_START + 3)
@@ -292,7 +326,6 @@ local function placeSaplings()
     
     -- Return to front-right position (position 1)
     turtle.forward()
-    refuel()
     
     print("2x2 saplings planted")
 end
@@ -365,7 +398,6 @@ local function harvestTree()
             state.treeHeight = state.treeHeight + 1
             logsThisTree = logsThisTree + 1
             saveState()
-            refuel()
             checkCommands()
         else
             -- No more logs above, we're done going up
@@ -392,7 +424,6 @@ local function harvestTree()
         end
         turtle.forward()
         turtle.turnRight()
-        refuel()
         
         -- Mine back-left
         success, data = turtle.inspect()
@@ -405,7 +436,6 @@ local function harvestTree()
         turtle.turnRight()
         turtle.forward()
         turtle.turnLeft()
-        refuel()
         
         -- Mine back-right
         success, data = turtle.inspect()
@@ -416,7 +446,6 @@ local function harvestTree()
         
         -- Return to front-right position
         turtle.forward()
-        refuel()
         
         -- Descend one level
         if height > 1 then
@@ -432,7 +461,6 @@ local function harvestTree()
     
     -- Return to starting position (back one from planting area)
     turtle.back()
-    refuel()
     
     clearState()
     state.phase = "idle"
