@@ -712,14 +712,43 @@ local function main()
                     Version.log("Completing harvest...")
                     harvestTree()
                     depositItems()
-                elseif state.phase == "growing" or state.phase == "planting" then
-                    Version.log("Restarting growth cycle...")
-                    -- Try to grow if saplings still there
-                    if isSapling() then
+                elseif state.phase == "depositing" then
+                    Version.log("Completing deposit...")
+                    depositItems()
+                elseif state.phase == "growing" then
+                    Version.log("Resuming from growing phase...")
+                    -- Check if tree already grew (there's a log in front)
+                    local success, data = turtle.inspect()
+                    if success and data.name and data.name:find("log") then
+                        -- Tree is grown, harvest it
+                        Version.log("Tree already grown, harvesting...")
+                        harvestTree()
+                        depositItems()
+                    elseif isSapling() then
+                        -- Still a sapling, continue growing
+                        Version.log("Tree not grown yet, continuing growth...")
                         growTree()
                         harvestTree()
+                        depositItems()
+                    else
+                        -- Nothing there, skip to deposit any items we have
+                        Version.log("No tree found, depositing items...")
+                        depositItems()
                     end
-                    depositItems()
+                elseif state.phase == "planting" then
+                    Version.log("Resuming from planting phase...")
+                    -- Check if saplings are already planted
+                    if isSapling() then
+                        -- Saplings planted, grow them
+                        Version.log("Saplings found, growing...")
+                        growTree()
+                        harvestTree()
+                        depositItems()
+                    else
+                        -- No saplings, restart planting
+                        Version.log("No saplings found, restarting cycle...")
+                        depositItems()
+                    end
                 end
                 
                 Version.log("Resumed cycle complete!")
