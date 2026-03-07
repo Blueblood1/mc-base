@@ -152,12 +152,51 @@ Drawing to monitors can be slow. Handle messages quickly and update displays on 
 
 Workers should:
 1. Initialize network with `Network.init()`
-2. Lookup central computer: `Network.lookup("central")`
-3. Send initial request_mode command
-4. Wait for response with timeout (5 seconds is reasonable)
-5. Default to safe state (paused) on timeout
-6. Run command listener in parallel with main loop
-7. Send periodic telemetry (every 10-30 seconds)
+2. Use `Worker.waitForCentralConnection(state, workerName)` to connect
+3. Create command listener with `Worker.createCommandListener(state, callbacks)`
+4. Run command listener in parallel with main loop
+5. Send periodic telemetry (every 10-30 seconds)
+
+**Example using Worker library:**
+```lua
+local Worker = require("worker")
+local Network = require("network")
+local Version = require("version")
+
+local sharedState = {
+    centralId = nil,
+    centralConnected = false,
+    operatingMode = "running",
+    stopRequested = false
+}
+
+local function main()
+    -- Initialize network
+    Network.init()
+    
+    -- Wait for connection to central
+    Worker.waitForCentralConnection(sharedState, "My Worker")
+    
+    -- Send initial telemetry
+    sendTelemetry()
+    
+    -- Create command listener (uses event-driven message handling)
+    local commandListener = Worker.createCommandListener(sharedState, {
+        sendAlert = sendAlert,
+        sendTelemetry = sendTelemetry,
+        onModeChange = onModeChange  -- Optional callback
+    })
+    
+    -- Run in parallel
+    parallel.waitForAll(mainLoop, commandListener)
+end
+```
+
+The Worker library handles:
+- DNS lookup and connection retry logic
+- Event-driven message handling (no blocking receives)
+- Command processing (set_mode, report_status, update, stop)
+- Mode change notifications
 
 ### 7. Central Computer Pattern
 

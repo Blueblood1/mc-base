@@ -36,38 +36,57 @@
 
 ## Phase 4: Update Cow Feeder
 
-- [-] 5. Refactor `turtles/cow_feeder.lua` to use new patterns
+- [x] 5. Refactor `turtles/cow_feeder.lua` to use new patterns
   - [x] 5.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
-  - [ ] 5.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
-  - [ ] 5.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 125)
-  - [ ] 5.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop
-  - [ ] 5.5 Remove inline `refuel()` calls from navigateGrid and returnHome
-  - [ ] 5.6 Remove `checkFuelLock()` function (replaced by ensureFuelForCycle)
-  - [ ] 5.7 Update `loadFuel()` to use `TurtleLib.loadFuelFromChestWithCleanup()`
-  - [ ] 5.8 Add `sendTelemetry()` call in returnHome after clearing state
+  - [x] 5.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
+  - [x] 5.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 125)
+  - [x] 5.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop
+  - [x] 5.5 Remove inline `refuel()` calls from navigateGrid and returnHome
+  - [x] 5.6 Remove `checkFuelLock()` function (replaced by ensureFuelForCycle)
+  - [x] 5.7 Update `loadFuel()` to use `TurtleLib.loadFuelFromChestWithCleanup()`
+  - [x] 5.8 Add `sendTelemetry()` call in returnHome after clearing state
 
 ## Phase 5: Update Tree Farmer
 
-- [ ] 6. Refactor `turtles/tree_farmer.lua` to use new patterns
-  - [ ] 6.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
-  - [ ] 6.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
-  - [ ] 6.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 75)
-  - [ ] 6.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop
-  - [ ] 6.5 Remove inline `refuel()` calls from work functions
-  - [ ] 6.6 Remove `checkFuelLock()` function (replaced by ensureFuelForCycle)
-  - [ ] 6.7 Update `loadFuel()` to use `TurtleLib.loadFuelFromChestWithCleanup()`
-  - [ ] 6.8 Add `sendTelemetry()` call after depositItems completes
+- [x] 6. Refactor `turtles/tree_farmer.lua` to use new patterns
+  - [x] 6.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
+  - [x] 6.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
+  - [x] 6.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 150)
+  - [x] 6.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop
+  - [x] 6.5 Remove inline `refuel()` calls from work functions
+  - [x] 6.6 Remove `checkFuelLock()` function (replaced by ensureFuelForCycle)
+  - [x] 6.7 Update `loadFuel()` to use `TurtleLib.loadFuelFromChestWithCleanup()`
+  - [x] 6.8 Add `sendTelemetry()` call in harvestTree after clearing state
+  - [x] 6.9 Fix resume logic to handle all phases (planting, growing, harvesting, depositing)
+  - [x] 6.10 Replace custom log() function with Version.log() for consistent timestamps
+  - [x] 6.11 Fix Worker.createCommandListener to use event-driven message handling
 
 ## Phase 6: Documentation & Cleanup
 
-- [ ] 7. Update documentation
-  - [ ] 7.1 Update README.md with new fuel lock pattern
-  - [ ] 7.2 Update `.kiro/steering/networking.md` with Worker library examples
-  - [ ] 7.3 Document fuel requirements for each turtle type
-  - [ ] 7.4 Update README.md "Adding New Turtles" section to reference Worker library
+- [x] 7. Update documentation
+  - [x] 7.1 Update README.md with new fuel lock pattern
+  - [x] 7.2 Update `.kiro/steering/networking.md` with Worker library examples
+  - [x] 7.3 Document fuel requirements for each turtle type
+  - [x] 7.4 Create `.kiro/steering/adding-workers.md` comprehensive guide
 
-- [ ] 8. Code cleanup
-  - [ ] 8.1 Remove commented-out old code
-  - [ ] 8.2 Verify consistent code style
-  - [ ] 8.3 Verify all error messages are clear and helpful
-  - [ ] 8.4 Verify all log messages are consistent
+- [x] 8. Code cleanup
+  - [x] 8.1 Remove commented-out old code (none found)
+  - [x] 8.2 Verify consistent code style
+  - [x] 8.3 Verify all error messages are clear and helpful
+  - [x] 8.4 Verify all log messages are consistent
+
+## Summary
+
+✅ All tasks complete! 
+
+All workers now use:
+- Worker library for connection and command handling
+- Event-driven message handling (no blocking receives)
+- Proactive fuel management (check before cycle, not during)
+- Consistent telemetry patterns (send on phase changes)
+- Proper resume logic for interrupted cycles
+
+Documentation updated:
+- README.md includes fuel requirements and new patterns
+- networking.md includes Worker library examples
+- New adding-workers.md provides comprehensive guide for creating new workers

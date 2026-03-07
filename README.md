@@ -102,11 +102,14 @@ Automated pig feeding in a 9x9 area.
 - Food chest in FRONT
 - Position at bottom-right of 9x9 area
 
+**Fuel Requirement:** 115 per cycle
+
 **Operation:**
-1. Loads fuel and food from chests
-2. Descends 3 blocks to pig farm
-3. Navigates 9x9 grid feeding pigs
-4. Returns home and repeats
+1. Checks fuel before starting (proactive fuel lock)
+2. Loads fuel and food from chests
+3. Descends 3 blocks to pig farm
+4. Navigates 9x9 grid feeding pigs
+5. Returns home and repeats
 
 ### Cow Feeder
 Automated cow feeding in a 9x9 area.
@@ -116,8 +119,10 @@ Automated cow feeding in a 9x9 area.
 - Food chest to the LEFT
 - Position at bottom-right of 9x9 area
 
+**Fuel Requirement:** 125 per cycle
+
 **Operation:**
-Similar to pig feeder but with different chest layout.
+Similar to pig feeder but with different chest layout and slightly higher fuel needs.
 
 ### Tree Farmer
 Automated 2x2 spruce tree farming with bonemeal.
@@ -128,12 +133,15 @@ Automated 2x2 spruce tree farming with bonemeal.
 - Bonemeal chest BEHIND
 - Face forward toward planting area
 
+**Fuel Requirement:** 150 per cycle
+
 **Operation:**
-1. Loads fuel, saplings, and bonemeal
-2. Plants 2x2 spruce saplings
-3. Uses bonemeal to grow tree
-4. Harvests entire tree
-5. Deposits items and repeats
+1. Checks fuel before starting (proactive fuel lock)
+2. Loads fuel, saplings, and bonemeal
+3. Plants 2x2 spruce saplings
+4. Uses bonemeal to grow tree
+5. Harvests entire tree
+6. Deposits items and repeats
 
 ## Updates
 
@@ -205,37 +213,63 @@ Click START button to resume:
 - Post-push hook displays deployed build
 - Version shown in all log messages
 
-### Adding New Turtles
+### Fuel Management Pattern
 
-1. Create your turtle program in `turtles/`
-2. Use parallel command listener:
+All turtles use a proactive fuel lock pattern:
+
+1. **Calculate cycle fuel requirement** - Determine how much fuel one complete cycle needs
+2. **Check before starting** - Use `TurtleLib.ensureFuelForCycle()` at the start of each cycle
+3. **No inline refueling** - Remove all `refuel()` calls from work loops
+4. **Fuel lock behavior** - If fuel is insufficient, turtle waits at home until refueled
+
+**Benefits:**
+- Turtles never get stuck mid-cycle due to low fuel
+- Predictable behavior - always completes or doesn't start
+- Cleaner code - no fuel checks scattered throughout
+
+### Adding New Workers
+
+See `.kiro/steering/adding-workers.md` for comprehensive guidance on creating new turtle or computer workers.
+
+**Quick Reference:**
+
+For turtles:
 ```lua
-local function commandListener()
-    while not stopRequested do
-        local senderId, msgType, data = Network.receive(1)
-        if msgType == Network.MSG_TYPES.COMMAND then
-            if data.command == "set_mode" then
-                operatingMode = data.mode
-            end
-        end
-    end
-end
+local Worker = require("worker")
+local TurtleLib = require("turtle")
 
+-- Define fuel requirement
+local CYCLE_FUEL_REQUIREMENT = 100
+
+-- In main():
+Worker.waitForCentralConnection(sharedState, "My Turtle")
+
+-- In mainLoop():
+TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
+
+-- Start command listener in parallel:
+local commandListener = Worker.createCommandListener(sharedState, {
+    sendAlert = sendAlert,
+    sendTelemetry = sendTelemetry
+})
 parallel.waitForAll(mainLoop, commandListener)
 ```
 
-3. Check pause state regularly:
+For computers:
 ```lua
-local function checkPauseState()
-    while operatingMode == "paused" do
-        log("Paused - waiting for resume...")
-        sendTelemetry()
-        sleep(2)
-    end
-end
-```
+local Worker = require("worker")
 
-4. Add to updater manifest in `libs/updater.lua`
+-- In main():
+Worker.waitForCentralConnection(sharedState, "My Computer")
+
+-- Start command listener with optional callback:
+local commandListener = Worker.createCommandListener(sharedState, {
+    sendAlert = sendAlert,
+    sendTelemetry = sendTelemetry,
+    onModeChange = updateRedstone  -- Optional: called when mode changes
+})
+parallel.waitForAll(mainLoop, commandListener)
+```
 
 ## Requirements
 
