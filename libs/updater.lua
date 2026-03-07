@@ -14,11 +14,16 @@ local function buildUrl(path)
     -- Try local server first
     local localUrl = Updater.LOCAL_SERVER .. "/" .. path
     
-    -- Test if local server is available with a quick timeout
-    local response = http.get(localUrl, nil, nil, 2)
-    if response then
-        response.close()
+    print("Checking local server...")
+    
+    -- Use http.checkURL to test if local server is reachable
+    local success, err = http.checkURL(localUrl)
+    
+    if success then
+        print("Local server available, using: " .. localUrl)
         return localUrl
+    else
+        print("Local server not available (" .. tostring(err) .. "), using GitHub")
     end
     
     -- Fallback to GitHub with cache buster
@@ -63,7 +68,6 @@ function Updater.download(githubPath, localFilename)
     
     local url = buildUrl(githubPath)
     print("Downloading " .. localFilename .. "...")
-    print("From: " .. (url:match("localhost") and "local server" or "GitHub"))
     
     local response = http.get(url)
     if not response then
