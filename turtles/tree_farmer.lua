@@ -900,6 +900,9 @@ local function main()
     -- Wait for connection to central and get initial mode
     waitForCentralConnection()
     
+    -- Send initial telemetry
+    sendTelemetry()
+    
     -- Check if we're resuming from a saved state
     local resuming = loadState()
     
