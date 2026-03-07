@@ -181,9 +181,11 @@ local function buildWitherInCell(cellNumber)
     status.currentCell = cellNumber
     
     -- Move forward 2 blocks
-    if not Turtle.forward(2) then
-        sendAlert("Failed to move forward 2")
-        return false
+    for i = 1, 2 do
+        if not turtle.forward() then
+            sendAlert("Failed to move forward 2")
+            return false
+        end
     end
     
     -- Request door open
@@ -192,9 +194,11 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Move forward 4 blocks into cell
-    if not Turtle.forward(4) then
-        sendAlert("Failed to move into cell")
-        return false
+    for i = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Failed to move into cell")
+            return false
+        end
     end
     
     -- Request previous door close (if not first cell)
@@ -205,31 +209,32 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Turn around to face where we came from
-    Turtle.turnAround()
+    turtle.turnRight()
+    turtle.turnRight()
     
     -- Ascend once (don't place soul sand yet - bottom is last)
-    if not Turtle.up() then
+    if not turtle.up() then
         sendAlert("Failed to ascend")
         return false
     end
     
     -- Turn right
-    Turtle.turnRight()
+    turtle.turnRight()
     
     -- Move forward once
-    if not Turtle.forward() then
+    if not turtle.forward() then
         sendAlert("Failed to move right")
         return false
     end
     
     -- Turn left and place soul sand
-    Turtle.turnLeft()
+    turtle.turnLeft()
     if not placeSoulSand() then
         return false
     end
     
     -- Ascend once and place wither skull
-    if not Turtle.up() then
+    if not turtle.up() then
         sendAlert("Failed to ascend for skull")
         return false
     end
@@ -238,28 +243,30 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Descend once
-    if not Turtle.down() then
+    if not turtle.down() then
         sendAlert("Failed to descend")
         return false
     end
     
     -- Turn left
-    Turtle.turnLeft()
+    turtle.turnLeft()
     
     -- Move forward twice
-    if not Turtle.forward(2) then
-        sendAlert("Failed to move to center")
-        return false
+    for i = 1, 2 do
+        if not turtle.forward() then
+            sendAlert("Failed to move to center")
+            return false
+        end
     end
     
     -- Turn right and place soul sand
-    Turtle.turnRight()
+    turtle.turnRight()
     if not placeSoulSand() then
         return false
     end
     
     -- Ascend once and place wither skull
-    if not Turtle.up() then
+    if not turtle.up() then
         sendAlert("Failed to ascend for center skull")
         return false
     end
@@ -268,28 +275,28 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Descend once
-    if not Turtle.down() then
+    if not turtle.down() then
         sendAlert("Failed to descend from center")
         return false
     end
     
     -- Turn right
-    Turtle.turnRight()
+    turtle.turnRight()
     
     -- Move forward once
-    if not Turtle.forward() then
+    if not turtle.forward() then
         sendAlert("Failed to move to left position")
         return false
     end
     
     -- Turn left and place soul sand
-    Turtle.turnLeft()
+    turtle.turnLeft()
     if not placeSoulSand() then
         return false
     end
     
     -- Ascend once and place wither skull
-    if not Turtle.up() then
+    if not turtle.up() then
         sendAlert("Failed to ascend for left skull")
         return false
     end
@@ -298,9 +305,11 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Descend twice (back to ground level)
-    if not Turtle.down(2) then
-        sendAlert("Failed to descend to ground")
-        return false
+    for i = 1, 2 do
+        if not turtle.down() then
+            sendAlert("Failed to descend to ground")
+            return false
+        end
     end
     
     -- Request next door open
@@ -314,12 +323,15 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Turn 180
-    Turtle.turnAround()
+    turtle.turnRight()
+    turtle.turnRight()
     
     -- Move forward 4 blocks (into next cell position)
-    if not Turtle.forward(4) then
-        sendAlert("Failed to move to next cell")
-        return false
+    for i = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Failed to move to next cell")
+            return false
+        end
     end
     
     Version.log("Completed cell " .. cellNumber)
