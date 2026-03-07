@@ -7,7 +7,6 @@ local Updater = require("updater")
 local Version = require("version")
 
 -- Configuration
-local FUEL_SLOT = 16
 local ATTACK_DELAY = 0.5 -- Delay between attacks in seconds
 local TELEMETRY_INTERVAL = 10
 local TURTLE_NAME = "Slayer"
@@ -40,12 +39,9 @@ sendTelemetry = function()
         sharedState.centralId = Network.lookup("central")
     end
     
-    local fuel = TurtleLib.getFuelStatus()
-    
     local telemetryData = {
         name = TURTLE_NAME .. " #" .. os.getComputerID(),
         status = sharedState.operatingMode == "paused" and "paused" or "active",
-        fuel = fuel,
         task = {
             phase = "slaying",
             kills = status.sessionKills,
@@ -57,8 +53,6 @@ sendTelemetry = function()
     if status.lastError then
         telemetryData.status = "error"
         telemetryData.error = status.lastError
-    elseif fuel.percent < 20 then
-        telemetryData.status = "warning"
     end
     
     if sharedState.centralId then
@@ -139,54 +133,12 @@ local function waitForCentralConnection()
     end
 end
 
--- Refuel from the fuel slot
-local function refuel()
-    turtle.select(FUEL_SLOT)
-    if turtle.getItemCount(FUEL_SLOT) > 0 then
-        turtle.refuel(1)
-    end
-end
-
--- Check fuel and refuel if needed
-local function checkFuel()
-    local fuel = TurtleLib.getFuelStatus()
-    
-    if fuel.percent <= 20 then
-        Version.log("Low fuel: " .. fuel.percent .. "%")
-        refuel()
-        fuel = TurtleLib.getFuelStatus()
-        
-        if fuel.percent <= 5 then
-            Version.log("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
-            sendAlert("FUEL LOCK: Critical fuel level, waiting for refuel")
-            status.lastError = "FUEL LOCK: Critical fuel"
-            sendTelemetry()
-            
-            while fuel.percent <= 5 do
-                Version.log("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
-                sleep(5)
-                refuel()
-                fuel = TurtleLib.getFuelStatus()
-                sendTelemetry()
-            end
-            
-            Version.log("Fuel lock released: " .. fuel.percent .. "%")
-            sendAlert("Fuel lock released: " .. fuel.percent .. "%")
-            status.lastError = nil
-            sendTelemetry()
-        end
-    end
-end
-
 -- Main slaying loop
 local function mainLoop()
     local lastTelemetry = os.epoch("utc")
     
     while true do
         TurtleLib.checkPauseState(sharedState, sendTelemetry)
-        
-        -- Check fuel periodically
-        checkFuel()
         
         -- Attack
         if turtle.attack() then
