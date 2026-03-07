@@ -2,6 +2,7 @@
 -- Controls redstone signal for wither mob farm based on central computer commands
 
 local Network = require("network")
+local Worker = require("worker")
 local Updater = require("updater")
 local Version = require("version")
 
@@ -95,109 +96,7 @@ local function updateRedstone()
     end
 end
 
--- Wait for connection to central and get initial mode
-local function waitForCentralConnection()
-    Version.log("Waiting for central computer...")
-    
-    -- Try to find central computer
-    while not sharedState.centralId do
-        sharedState.centralId = Network.lookup("central")
-        if not sharedState.centralId then
-            sleep(2)
-        end
-    end
-    
-    Version.log("Found central computer: " .. sharedState.centralId)
-    sharedState.centralConnected = true
-    
-    -- Request initial mode
-    Network.send(sharedState.centralId, Network.MSG_TYPES.COMMAND, {
-        command = "request_mode",
-        name = COMPUTER_NAME .. " #" .. os.getComputerID()
-    })
-    
-    Version.log("Requested initial mode from central")
-    
-    -- Wait for mode response (with timeout)
-    local timeout = os.startTimer(5)
-    local modeReceived = false
-    
-    while not modeReceived do
-        local event, param1, param2, param3 = os.pullEvent()
-        
-        if event == "timer" and param1 == timeout then
-            Version.log("Timeout waiting for mode, defaulting to paused")
-            break
-        elseif event == "rednet_message" then
-            -- param1 = sender ID
-            -- param2 = message
-            -- param3 = protocol
-            
-            if param3 == Network.PROTOCOL and param1 == sharedState.centralId then
-                if type(param2) == "table" and param2.type == Network.MSG_TYPES.COMMAND then
-                    if param2.data and param2.data.command == "set_mode" then
-                        sharedState.operatingMode = param2.data.mode
-                        Version.log("Initial mode set to: " .. sharedState.operatingMode)
-                        modeReceived = true
-                        os.cancelTimer(timeout)
-                    end
-                end
-            end
-        end
-    end
-    
-    if not modeReceived then
-        os.cancelTimer(timeout)
-    end
-end
-
--- Command listener (runs in parallel with main loop)
-local function createCommandListener()
-    return function()
-        while true do
-            local senderId, msgType, data = Network.receive()
-            
-            if msgType == Network.MSG_TYPES.COMMAND then
-                if data.command == "set_mode" then
-                    local oldMode = sharedState.operatingMode
-                    sharedState.operatingMode = data.mode
-                    Version.log("Mode changed: " .. oldMode .. " -> " .. data.mode)
-                    
-                    -- Update redstone immediately
-                    updateRedstone()
-                    
-                    -- Always send telemetry after mode change
-                    sendTelemetry()
-                    
-                elseif data.command == "report_status" then
-                    sendTelemetry()
-                    
-                elseif data.command == "update" then
-                    Version.log("Update command received, updating...")
-                    sendAlert("Starting update...")
-                    
-                    local results = Updater.updateLocal()
-                    local updated = false
-                    for filename, result in pairs(results) do
-                        if result.success then
-                            updated = true
-                        end
-                    end
-                    
-                    if updated then
-                        sendAlert("Update complete, rebooting...")
-                        sleep(2)
-                        os.reboot()
-                    else
-                        sendAlert("Already up to date")
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Install startup file
+-- Main program
 local function installStartup()
     if not fs.exists("startup") and not fs.exists("startup.lua") then
         Version.log("Installing startup file...")
@@ -247,7 +146,7 @@ local function main()
     installStartup()
     
     -- Wait for connection to central and get initial mode
-    waitForCentralConnection()
+    Worker.waitForCentralConnection(sharedState, COMPUTER_NAME)
     
     -- Send initial telemetry
     sendTelemetry()
@@ -259,7 +158,11 @@ local function main()
     Version.log("Mode: " .. sharedState.operatingMode)
     
     -- Create command listener
-    local commandListener = createCommandListener()
+    local commandListener = Worker.createCommandListener(sharedState, {
+        sendAlert = sendAlert,
+        sendTelemetry = sendTelemetry,
+        onModeChange = updateRedstone
+    })
     
     -- Run main loop and command listener in parallel
     parallel.waitForAll(

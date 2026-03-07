@@ -181,59 +181,96 @@ function TurtleLib.getIdentifier()
     return os.getComputerLabel() or "turtle_" .. os.getComputerID()
 end
 
--- Create a command listener that runs in parallel
+-- Ensure turtle has enough fuel for a complete cycle
+-- Enters fuel lock if insufficient, waits for refueling, then continues
 -- Parameters:
---   state: shared state table with:
---     operatingMode, stopRequested, centralId, centralConnected
---   callbacks: {
---     sendAlert: function to send alerts
---     sendTelemetry: function to send telemetry
---   }
-function TurtleLib.createCommandListener(state, callbacks)
-    local Network = require("network")
-    local Updater = require("updater")
+--   minimumFuel: minimum fuel level required for cycle
+--   fuelChestDirection: direction of fuel chest ("front", "right", "left", "back", "top", "bottom")
+--   sendTelemetry: function to send telemetry updates
+--   sendAlert: function to send alert messages
+-- Returns: true when fuel is sufficient
+function TurtleLib.ensureFuelForCycle(minimumFuel, fuelChestDirection, sendTelemetry, sendAlert)
+    local Version = require("version")
+    local fuel = TurtleLib.getFuelStatus()
     
-    return function()
-        while not state.stopRequested do
-            local senderId, msgType, data = Network.receive(1)
-            if senderId and msgType == Network.MSG_TYPES.COMMAND then
-                if data.command == "report_status" then
-                    callbacks.sendTelemetry()
-                    
-                elseif data.command == "set_mode" then
-                    local oldMode = state.operatingMode
-                    state.operatingMode = data.mode or "running"
-                    state.centralId = senderId
-                    state.centralConnected = true
-                    if oldMode ~= state.operatingMode then
-                        callbacks.sendAlert("Mode changed: " .. tostring(oldMode) .. " -> " .. state.operatingMode)
-                    end
-                    -- Always send telemetry after mode change
-                    callbacks.sendTelemetry()
-                    
-                elseif data.command == "stop" then
-                    callbacks.sendAlert("Received stop command")
-                    state.stopRequested = true
-                    
-                elseif data.command == "update" then
-                    callbacks.sendAlert("Received update command, updating...")
-                    local results = Updater.updateLocal()
-                    local successCount = 0
-                    local failCount = 0
-                    for filename, result in pairs(results) do
-                        if result.success then
-                            successCount = successCount + 1
-                        else
-                            failCount = failCount + 1
-                        end
-                    end
-                    callbacks.sendAlert("Update complete: " .. successCount .. " success, " .. failCount .. " failed")
-                    sleep(2)
-                    os.reboot()
+    if fuel.level >= minimumFuel then
+        return true  -- Already have enough fuel
+    end
+    
+    -- Enter fuel lock
+    Version.log("FUEL LOCK: Need " .. minimumFuel .. ", have " .. fuel.level)
+    sendAlert("FUEL LOCK: Insufficient fuel for cycle")
+    
+    while fuel.level < minimumFuel do
+        Version.log("Fuel: " .. fuel.level .. "/" .. minimumFuel .. " - Loading...")
+        
+        -- Try to load fuel
+        local success, fuelPercent = TurtleLib.loadFuelFromChest(fuelChestDirection, 100)
+        
+        fuel = TurtleLib.getFuelStatus()
+        sendTelemetry()
+        
+        if fuel.level < minimumFuel then
+            Version.log("Still need more fuel, waiting...")
+            sleep(5)
+        end
+    end
+    
+    Version.log("Fuel lock released: " .. fuel.level .. " fuel")
+    sendAlert("Fuel lock released")
+    return true
+end
+
+-- Load fuel from chest with cleanup of non-fuel items first
+-- Parameters:
+--   fuelDirection: direction of fuel chest ("front", "right", "left", "back", "top", "bottom")
+--   cleanupDirections: table mapping item patterns to chest directions
+--     Example: {["sapling"] = "left", ["bone"] = "back"}
+--   targetPercent: target fuel percentage (default 80)
+-- Returns: success (boolean), final fuel percentage
+function TurtleLib.loadFuelFromChestWithCleanup(fuelDirection, cleanupDirections, targetPercent)
+    targetPercent = targetPercent or 80
+    
+    -- Step 1: Clean up non-fuel items to their respective chests
+    for itemPattern, direction in pairs(cleanupDirections) do
+        -- Turn to face cleanup chest
+        if direction == "left" then
+            turtle.turnLeft()
+        elseif direction == "right" then
+            turtle.turnRight()
+        elseif direction == "back" then
+            turtle.turnRight()
+            turtle.turnRight()
+        end
+        
+        -- Drop items matching this pattern
+        for slot = 1, 16 do
+            turtle.select(slot)
+            local item = turtle.getItemDetail(slot)
+            if item and item.name:find(itemPattern) then
+                if direction == "top" then
+                    turtle.dropUp()
+                elseif direction == "bottom" then
+                    turtle.dropDown()
+                else
+                    turtle.drop()
                 end
             end
         end
+        
+        -- Turn back to original direction
+        if direction == "left" then
+            turtle.turnRight()
+        elseif direction == "right" then
+            turtle.turnLeft()
+        elseif direction == "back" then
+            turtle.turnRight()
+            turtle.turnRight()
+        end
     end
+    
+    -- Step 2: Load fuel using existing function
+    return TurtleLib.loadFuelFromChest(fuelDirection, targetPercent)
 end
 
 -- Check if paused and wait until resumed
@@ -246,69 +283,6 @@ function TurtleLib.checkPauseState(state, sendTelemetry)
     while state.operatingMode == "paused" do
         Version.log("Paused - waiting for resume...")
         sendTelemetry()
-        sleep(2)
-    end
-end
-
--- Wait for initial connection and mode from central computer
--- Parameters:
---   state: shared state table with:
---     centralId, centralConnected, operatingMode
---   turtleName: name of the turtle (e.g., "Tree Farmer")
-function TurtleLib.waitForCentralConnection(state, turtleName)
-    local Network = require("network")
-    local Version = require("version")
-    
-    Version.log("Waiting for connection to central computer...")
-    Version.log("Requesting initial mode...")
-    
-    while not state.centralConnected do
-        -- Try to find central
-        if not state.centralId then
-            state.centralId = Network.lookup("central")
-        end
-        
-        -- Request our mode
-        local fullName = turtleName .. " #" .. os.getComputerID()
-        if state.centralId then
-            Network.send(state.centralId, Network.MSG_TYPES.COMMAND, {
-                command = "request_mode",
-                name = fullName
-            })
-        else
-            Network.broadcast(Network.MSG_TYPES.COMMAND, {
-                command = "request_mode",
-                name = fullName
-            })
-        end
-        
-        -- Wait for response
-        local timeout = os.startTimer(3)
-        while true do
-            local event, param1, param2, param3 = os.pullEvent()
-            
-            if event == "timer" and param1 == timeout then
-                Version.log("No response, retrying...")
-                break
-            elseif event == "rednet_message" then
-                local senderId = param1
-                local message = param2
-                local protocol = param3
-                
-                if protocol == Network.PROTOCOL and message and message.type == Network.MSG_TYPES.COMMAND then
-                    local data = message.data
-                    if data.command == "set_mode" and data.mode then
-                        state.operatingMode = data.mode
-                        state.centralId = senderId
-                        state.centralConnected = true
-                        Version.log("Connected to central! Mode: " .. state.operatingMode)
-                        os.cancelTimer(timeout)
-                        return
-                    end
-                end
-            end
-        end
-        
         sleep(2)
     end
 end
