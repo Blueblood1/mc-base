@@ -71,8 +71,11 @@ local function waitForCentralConnection()
                 log("No response, retrying...")
                 break
             elseif event == "rednet_message" then
+                log("DEBUG: Got rednet message")
                 local senderId, msgType, data = Network.receive(0)
+                log("DEBUG: senderId=" .. tostring(senderId) .. " msgType=" .. tostring(msgType))
                 if senderId and msgType == Network.MSG_TYPES.COMMAND then
+                    log("DEBUG: Got COMMAND, data.command=" .. tostring(data.command))
                     if data.command == "set_mode" and data.mode then
                         operatingMode = data.mode
                         centralId = senderId

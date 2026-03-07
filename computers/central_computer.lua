@@ -255,6 +255,9 @@ local function handleMessage(senderId, msgType, data)
         -- Handle request_mode from turtles
         if data.command == "request_mode" then
             local mode = State.getTurtleMode(centralState, senderId)
+            
+            print("DEBUG: Sending mode '" .. mode .. "' to turtle " .. senderId)
+            
             Network.send(senderId, Network.MSG_TYPES.COMMAND, {
                 command = "set_mode",
                 mode = mode
@@ -262,6 +265,8 @@ local function handleMessage(senderId, msgType, data)
             
             local turtleName = data.name or ("Turtle " .. senderId)
             table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. " requested mode: " .. mode)
+            
+            print("DEBUG: Response sent")
         end
     elseif msgType == Network.MSG_TYPES.HEARTBEAT then
         if turtles[senderId] then
