@@ -238,6 +238,7 @@ end
 local function checkCommands()
     local senderId, msgType, data = Network.receive(0.1)
     if senderId and msgType == Network.MSG_TYPES.COMMAND then
+        log("DEBUG: Received command: " .. tostring(data.command))
         if data.command == "report_status" then
             sendTelemetry()
         elseif data.command == "set_mode" then

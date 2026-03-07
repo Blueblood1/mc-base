@@ -61,6 +61,9 @@ end
 -- Toggle turtle mode
 local function toggleTurtleMode(turtleId)
     local newMode = State.toggleTurtleMode(centralState, turtleId)
+    
+    print("DEBUG: Sending set_mode=" .. newMode .. " to turtle " .. turtleId)
+    
     Network.send(turtleId, Network.MSG_TYPES.COMMAND, {
         command = "set_mode",
         mode = newMode
