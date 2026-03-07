@@ -227,41 +227,15 @@ local function install(args)
     print("")
     print("=== Installation Complete ===")
     print("Success: " .. success)
-    print("Failed: " .. failed)
-    print("")
-    
-    if isTurtle then
-        print("To start: " .. turtleType)
-        print("Or reboot to auto-start")
-        print("")
-        print("Setup:")
-        print("1. Attach wireless modem")
-        
-        if turtleType == "pig_feeder" then
-            print("2. Place fuel chest to the RIGHT")
-            print("3. Place food chest in FRONT")
-            print("4. Position at bottom-right of 9x9")
-        elseif turtleType == "cow_feeder" then
-            print("2. Place fuel chest to the RIGHT")
-            print("3. Place food chest to the LEFT")
-            print("4. Position at bottom-right of 9x9")
-        elseif turtleType == "tree_farmer" then
-            print("2. Place fuel chest to the RIGHT")
-            print("3. Place sapling chest to the LEFT")
-            print("4. Place bonemeal chest BEHIND")
-            print("5. Face forward toward planting area")
-        end
-    else
-        print("To start: central_computer")
-        print("Or reboot to auto-start")
-        print("")
-        print("Setup:")
-        print("1. Attach wireless modem")
-        print("2. (Optional) Attach monitor")
+    if failed > 0 then
+        print("Failed: " .. failed)
     end
     
-    print("")
-    print("Updates: Press U on central computer")
+    if isTurtle then
+        print("Run: " .. turtleType)
+    else
+        print("Run: central_computer")
+    end
 end
 
 -- Run installation
