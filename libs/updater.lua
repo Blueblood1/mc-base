@@ -46,6 +46,7 @@ Updater.MANIFEST = {
     -- Libraries
     ["network.lua"] = "libs/network.lua",
     ["turtle.lua"] = "libs/turtle.lua",
+    ["worker.lua"] = "libs/worker.lua",
     ["updater.lua"] = "libs/updater.lua",
     ["ui.lua"] = "libs/ui.lua",
     ["state.lua"] = "libs/state.lua",

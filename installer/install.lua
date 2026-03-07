@@ -216,6 +216,13 @@ local function install(args)
         print("FAILED: ui.lua")
     end
     
+    if download("libs/worker.lua", "worker.lua") then
+        success = success + 1
+    else
+        failed = failed + 1
+        print("FAILED: worker.lua")
+    end
+    
     if isTurtle then
         -- Install turtle-specific files
         print("")
