@@ -88,20 +88,28 @@ end
 local function loadResources()
     Version.log("Loading resources...")
     
+    -- Calculate how much we need
+    local soulsandNeeded = NUM_CELLS * 4  -- 4 per wither
+    local skullsNeeded = NUM_CELLS * 3    -- 3 per wither
+    
+    Version.log("Need " .. soulsandNeeded .. " soul sand and " .. skullsNeeded .. " skulls for " .. NUM_CELLS .. " cells")
+    
     -- Load soul sand from left
     Version.log("Loading soul sand from left...")
     turtle.turnLeft()
     turtle.select(SOUL_SAND_SLOT)
-    for i = 1, 4 do  -- Try to fill the slot
-        if turtle.getItemCount(SOUL_SAND_SLOT) >= 64 then
-            break
-        end
-        turtle.suck()
+    
+    -- Suck until we have enough
+    local attempts = 0
+    while turtle.getItemCount(SOUL_SAND_SLOT) < soulsandNeeded and attempts < 10 do
+        turtle.suck(64)
+        attempts = attempts + 1
     end
     
     local soulSandCount = turtle.getItemCount(SOUL_SAND_SLOT)
-    if soulSandCount == 0 then
-        sendAlert("No soul sand loaded!")
+    if soulSandCount < soulsandNeeded then
+        sendAlert("Not enough soul sand! Have " .. soulSandCount .. ", need " .. soulsandNeeded)
+        turtle.turnRight()  -- Turn back
         return false
     end
     Version.log("Loaded " .. soulSandCount .. " soul sand")
@@ -114,16 +122,19 @@ local function loadResources()
     turtle.turnRight()
     turtle.turnRight()
     turtle.select(SKULL_SLOT)
-    for i = 1, 4 do  -- Try to fill the slot
-        if turtle.getItemCount(SKULL_SLOT) >= 64 then
-            break
-        end
-        turtle.suck()
+    
+    -- Suck until we have enough
+    attempts = 0
+    while turtle.getItemCount(SKULL_SLOT) < skullsNeeded and attempts < 10 do
+        turtle.suck(64)
+        attempts = attempts + 1
     end
     
     local skullCount = turtle.getItemCount(SKULL_SLOT)
-    if skullCount == 0 then
-        sendAlert("No skulls/dirt loaded!")
+    if skullCount < skullsNeeded then
+        sendAlert("Not enough skulls! Have " .. skullCount .. ", need " .. skullsNeeded)
+        turtle.turnRight()  -- Turn back
+        turtle.turnRight()
         return false
     end
     Version.log("Loaded " .. skullCount .. " skulls/dirt")
@@ -214,8 +225,13 @@ end
 -- Place soul sand from inventory
 local function placeSoulSand()
     turtle.select(SOUL_SAND_SLOT)
+    local count = turtle.getItemCount(SOUL_SAND_SLOT)
+    if count == 0 then
+        sendAlert("Out of soul sand!")
+        return false
+    end
     if not turtle.place() then
-        sendAlert("Failed to place soul sand!")
+        sendAlert("Failed to place soul sand! (Block in the way?)")
         return false
     end
     return true
@@ -224,8 +240,13 @@ end
 -- Place wither skull from inventory
 local function placeSkull()
     turtle.select(SKULL_SLOT)
+    local count = turtle.getItemCount(SKULL_SLOT)
+    if count == 0 then
+        sendAlert("Out of skulls!")
+        return false
+    end
     if not turtle.place() then
-        sendAlert("Failed to place skull!")
+        sendAlert("Failed to place skull! (Block in the way?)")
         return false
     end
     return true
