@@ -1,6 +1,32 @@
 -- Central Command Computer v2
 -- Monitors and controls all turtles with touch screen support
 
+-- Download missing libraries if needed
+local function ensureLibraries()
+    local Updater = require("updater")
+    local missingLibs = {}
+    
+    if not fs.exists("ui.lua") then
+        table.insert(missingLibs, "ui.lua")
+    end
+    if not fs.exists("state.lua") then
+        table.insert(missingLibs, "state.lua")
+    end
+    
+    if #missingLibs > 0 then
+        print("Downloading missing libraries...")
+        for _, lib in ipairs(missingLibs) do
+            print("Downloading " .. lib .. "...")
+            Updater.updateFile(lib)
+        end
+        print("Libraries downloaded. Rebooting...")
+        sleep(2)
+        os.reboot()
+    end
+end
+
+ensureLibraries()
+
 local Network = require("network")
 local Updater = require("updater")
 local UI = require("ui")
