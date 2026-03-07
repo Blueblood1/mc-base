@@ -83,46 +83,60 @@ function Worker.createCommandListener(state, callbacks)
     
     return function()
         while not state.stopRequested do
-            local senderId, msgType, data = Network.receive(1)
+            -- Use event-driven message handling (not blocking receive)
+            local event, param1, param2, param3 = os.pullEvent()
             
-            if senderId and msgType == Network.MSG_TYPES.COMMAND then
-                if data.command == "report_status" then
-                    callbacks.sendTelemetry()
+            if event == "rednet_message" then
+                -- Read from event parameters (networking best practice)
+                local senderId = param1
+                local message = param2
+                local protocol = param3
+                
+                -- Verify protocol
+                if protocol == Network.PROTOCOL and type(message) == "table" then
+                    local msgType = message.type
+                    local data = message.data
                     
-                elseif data.command == "set_mode" then
-                    local oldMode = state.operatingMode
-                    state.operatingMode = data.mode or "running"
-                    state.centralId = senderId
-                    state.centralConnected = true
-                    
-                    if oldMode ~= state.operatingMode then
-                        Version.log("Mode: " .. oldMode .. " -> " .. state.operatingMode)
-                        callbacks.sendAlert("Mode changed to " .. state.operatingMode)
-                        
-                        -- Call optional mode change callback
-                        if callbacks.onModeChange then
-                            callbacks.onModeChange()
+                    if msgType == Network.MSG_TYPES.COMMAND then
+                        if data.command == "report_status" then
+                            callbacks.sendTelemetry()
+                            
+                        elseif data.command == "set_mode" then
+                            local oldMode = state.operatingMode
+                            state.operatingMode = data.mode or "running"
+                            state.centralId = senderId
+                            state.centralConnected = true
+                            
+                            if oldMode ~= state.operatingMode then
+                                Version.log("Mode: " .. oldMode .. " -> " .. state.operatingMode)
+                                callbacks.sendAlert("Mode changed to " .. state.operatingMode)
+                                
+                                -- Call optional mode change callback
+                                if callbacks.onModeChange then
+                                    callbacks.onModeChange()
+                                end
+                            end
+                            
+                            callbacks.sendTelemetry()
+                            
+                        elseif data.command == "stop" then
+                            callbacks.sendAlert("Stop command received")
+                            state.stopRequested = true
+                            
+                        elseif data.command == "update" then
+                            callbacks.sendAlert("Updating...")
+                            local results = Updater.updateLocal()
+                            local successCount = 0
+                            for _, result in pairs(results) do
+                                if result.success then
+                                    successCount = successCount + 1
+                                end
+                            end
+                            callbacks.sendAlert("Updated " .. successCount .. " files")
+                            sleep(2)
+                            os.reboot()
                         end
                     end
-                    
-                    callbacks.sendTelemetry()
-                    
-                elseif data.command == "stop" then
-                    callbacks.sendAlert("Stop command received")
-                    state.stopRequested = true
-                    
-                elseif data.command == "update" then
-                    callbacks.sendAlert("Updating...")
-                    local results = Updater.updateLocal()
-                    local successCount = 0
-                    for _, result in pairs(results) do
-                        if result.success then
-                            successCount = successCount + 1
-                        end
-                    end
-                    callbacks.sendAlert("Updated " .. successCount .. " files")
-                    sleep(2)
-                    os.reboot()
                 end
             end
         end
