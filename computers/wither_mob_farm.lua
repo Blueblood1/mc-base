@@ -133,6 +133,8 @@ local function waitForCentralConnection()
             break
         elseif event == "rednet_message" then
             Version.log("Received rednet message from " .. param1)
+            
+            -- Try to receive with protocol filter
             local senderId, msgType, data = Network.receive(0)
             if senderId then
                 Version.log("Message type: " .. tostring(msgType))
@@ -151,7 +153,15 @@ local function waitForCentralConnection()
                     Version.log("Ignoring message (sender=" .. senderId .. ", expected=" .. sharedState.centralId .. ")")
                 end
             else
-                Version.log("Message not for our protocol")
+                -- Try raw receive to see what protocol it is
+                Version.log("Message not for our protocol, checking raw...")
+                local rawSender, rawMessage, rawProtocol = rednet.receive(nil, 0)
+                if rawSender then
+                    Version.log("Raw protocol: " .. tostring(rawProtocol))
+                    Version.log("Raw sender: " .. rawSender)
+                else
+                    Version.log("No message in queue")
+                end
             end
         end
     end
