@@ -161,6 +161,9 @@ local function createCommandListener()
                     -- Update redstone immediately
                     updateRedstone()
                     
+                    -- Always send telemetry after mode change
+                    sendTelemetry()
+                    
                 elseif data.command == "report_status" then
                     sendTelemetry()
                     
