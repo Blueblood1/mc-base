@@ -11,13 +11,13 @@ pcall(function()
     Version = require("version")
 end)
 
--- Logging helper
+-- Logging helper - always uses version prefix
 local function log(message)
+    local build = "?"
     if Version then
-        Version.log(message)
-    else
-        print(message)
+        build = tostring(Version.get())
     end
+    print("[v" .. build .. "] " .. message)
 end
 
 -- Configuration
@@ -327,13 +327,13 @@ local function checkFuelLock()
     local fuel = TurtleLib.getFuelStatus()
     
     if fuel.percent <= 5 then
-        print("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
+        log("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
         sendAlert("FUEL LOCK: Critical fuel level, waiting for refuel")
         status.lastError = "FUEL LOCK: Critical fuel"
         sendTelemetry()
         
         while fuel.percent <= 5 do
-            print("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
+            log("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
             
             -- Try to load fuel from chest
             turtle.turnRight()
@@ -352,7 +352,7 @@ local function checkFuelLock()
             sleep(5)
         end
         
-        print("Fuel lock released: " .. fuel.percent .. "%")
+        log("Fuel lock released: " .. fuel.percent .. "%")
         sendAlert("Fuel lock released: " .. fuel.percent .. "%")
         status.lastError = nil
         sendTelemetry()
@@ -430,7 +430,7 @@ local function placeSaplings()
     turtle.turnRight()
     turtle.select(SAPLING_SLOTS_START)
     if not turtle.place() then
-        print("Failed to place sapling 1")
+        log("Failed to place sapling 1")
     end
     
     -- Turn left, move backwards 1, place sapling (position 2)
@@ -438,14 +438,14 @@ local function placeSaplings()
     turtle.back()
     turtle.select(SAPLING_SLOTS_START + 1)
     if not turtle.place() then
-        print("Failed to place sapling 2")
+        log("Failed to place sapling 2")
     end
     
     -- Turn right, place sapling in front (position 3)
     turtle.turnRight()
     turtle.select(SAPLING_SLOTS_START + 2)
     if not turtle.place() then
-        print("Failed to place sapling 3")
+        log("Failed to place sapling 3")
     end
     
     -- Turn left, move backwards 1, place sapling in front (position 4)
@@ -453,10 +453,10 @@ local function placeSaplings()
     turtle.back()
     turtle.select(SAPLING_SLOTS_START + 3)
     if not turtle.place() then
-        print("Failed to place sapling 4")
+        log("Failed to place sapling 4")
     end
     
-    print("2x2 saplings planted")
+    log("2x2 saplings planted")
 end
 
 -- Use bonemeal until tree grows
@@ -464,7 +464,7 @@ local function growTree()
     state.phase = "growing"
     saveState()
     
-    print("Growing tree with bonemeal...")
+    log("Growing tree with bonemeal...")
     local attempts = 0
     local maxAttempts = 200
     
@@ -522,7 +522,7 @@ local function growTree()
             end
         elseif success and data.name and data.name:find("log") then
             -- Tree has grown! We detected a log
-            print("Tree grown! Used " .. attempts .. " bonemeal")
+            log("Tree grown! Used " .. attempts .. " bonemeal")
             return true
         else
             -- Something else is there or nothing at all
@@ -545,7 +545,7 @@ local function harvestTree()
     state.treeHeight = 0
     saveState()
     
-    print("Harvesting tree...")
+    log("Harvesting tree...")
     local logsThisTree = 0
     
     -- We're facing the front-left log of the 2x2
@@ -602,7 +602,7 @@ local function harvestTree()
         end
     end
     
-    print("Reached near top at height: " .. state.treeHeight)
+    log("Reached near top at height: " .. state.treeHeight)
     
     -- Phase 2: Move forward to access the 4th column area
     turtle.forward()
@@ -675,7 +675,7 @@ local function harvestTree()
         end
     end
     
-    print("Cleared 4th column, total height: " .. state.treeHeight)
+    log("Cleared 4th column, total height: " .. state.treeHeight)
     
     -- Phase 3: Descend back down, breaking any remaining logs below and in front
     for height = state.treeHeight, 1, -1 do
@@ -698,7 +698,7 @@ local function harvestTree()
         checkCommands()
     end
     
-    print("Harvested " .. logsThisTree .. " logs")
+    log("Harvested " .. logsThisTree .. " logs")
     status.logsCollected = status.logsCollected + logsThisTree
     status.treesHarvested = status.treesHarvested + 1
     
@@ -722,7 +722,7 @@ local function depositItems()
     state.phase = "depositing"
     saveState()
     
-    print("Depositing items...")
+    log("Depositing items...")
     
     -- Deposit logs into chest below
     for slot = 1, 16 do
@@ -757,13 +757,13 @@ local function depositItems()
     turtle.turnRight()
     turtle.turnRight()
     
-    print("Items deposited")
+    log("Items deposited")
 end
 
 -- Install startup file
 local function installStartup()
     if not fs.exists("startup") and not fs.exists("startup.lua") then
-        print("Installing startup file...")
+        log("Installing startup file...")
         local file = fs.open("startup.lua", "w")
         file.write('-- Auto-start tree farmer on boot\n')
         file.write('-- Update before running\n')
@@ -773,7 +773,7 @@ local function installStartup()
         file.write('print("Starting tree farmer daemon...")\n')
         file.write('shell.run("tree_farmer")\n')
         file.close()
-        print("Startup file installed!")
+        log("Startup file installed!")
         return true
     end
     return false
