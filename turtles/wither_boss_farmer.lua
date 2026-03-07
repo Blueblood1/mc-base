@@ -463,6 +463,7 @@ local function mainLoop()
     -- Load resources from chests
     if not loadResources() then
         sendAlert("Failed to load resources!")
+        sleep(60)  -- Wait before retrying
         return
     end
     
@@ -471,6 +472,7 @@ local function mainLoop()
     
     -- Find the farm computer
     if not findFarmComputer() then
+        sleep(60)  -- Wait before retrying
         return
     end
     
@@ -480,6 +482,7 @@ local function mainLoop()
     for cell = 1, NUM_CELLS do
         if not buildWitherInCell(cell) then
             sendAlert("Failed to build wither in cell " .. cell)
+            sleep(60)  -- Wait before retrying
             return
         end
         
@@ -487,8 +490,11 @@ local function mainLoop()
     end
     
     Version.log("Completed " .. NUM_CELLS .. " cells!")
-    Version.log("Turtle stopped at current position for inspection")
+    Version.log("TEST MODE: Sleeping for 10 minutes to inspect build...")
     sendTelemetry()
+    
+    -- Sleep for 10 minutes so you can inspect the build
+    sleep(600)
 end
 
 -- Main program
