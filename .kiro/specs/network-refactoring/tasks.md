@@ -24,15 +24,15 @@
 
 ## Phase 3: Update Pig Feeder
 
-- [ ] 4. Refactor `turtles/pig_feeder.lua` to use new patterns
-  - [ ] 4.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
-  - [ ] 4.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
-  - [ ] 4.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 115)
-  - [ ] 4.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop
-  - [ ] 4.5 Remove inline `refuel()` calls from navigateGrid and returnHome
-  - [ ] 4.6 Remove `checkFuelLock()` function (replaced by ensureFuelForCycle)
-  - [ ] 4.7 Update `loadFuel()` to use `TurtleLib.loadFuelFromChestWithCleanup()`
-  - [ ] 4.8 Add `sendTelemetry()` call in returnHome after clearing state
+- [x] 4. Refactor `turtles/pig_feeder.lua` to use new patterns
+  - [x] 4.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
+  - [x] 4.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
+  - [x] 4.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 115)
+  - [x] 4.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop
+  - [x] 4.5 Remove inline `refuel()` calls from navigateGrid and returnHome
+  - [x] 4.6 Remove `checkFuelLock()` function (replaced by ensureFuelForCycle)
+  - [x] 4.7 Update `loadFuel()` to use `TurtleLib.loadFuelFromChestWithCleanup()`
+  - [x] 4.8 Add `sendTelemetry()` call in returnHome after clearing state
 
 ## Phase 4: Update Cow Feeder
 
