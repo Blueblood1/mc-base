@@ -5,21 +5,7 @@ local Network = require("network")
 local TurtleLib = require("turtle")
 local Worker = require("worker")
 local Updater = require("updater")
-
--- Try to load version, but don't fail if it doesn't exist
-local Version = nil
-pcall(function()
-    Version = require("version")
-end)
-
--- Logging helper - always uses version prefix
-local function log(message)
-    local build = "?"
-    if Version then
-        build = tostring(Version.get())
-    end
-    print("[v" .. build .. "] " .. message)
-end
+local Version = require("version")
 
 -- Configuration
 local CYCLE_FUEL_REQUIREMENT = 150 -- Fuel needed for one complete cycle
@@ -232,7 +218,7 @@ local function placeSaplings()
     turtle.turnRight()
     turtle.select(SAPLING_SLOTS_START)
     if not turtle.place() then
-        log("Failed to place sapling 1")
+        Version.log("Failed to place sapling 1")
     end
     
     -- Turn left, move backwards 1, place sapling (position 2)
@@ -240,14 +226,14 @@ local function placeSaplings()
     turtle.back()
     turtle.select(SAPLING_SLOTS_START + 1)
     if not turtle.place() then
-        log("Failed to place sapling 2")
+        Version.log("Failed to place sapling 2")
     end
     
     -- Turn right, place sapling in front (position 3)
     turtle.turnRight()
     turtle.select(SAPLING_SLOTS_START + 2)
     if not turtle.place() then
-        log("Failed to place sapling 3")
+        Version.log("Failed to place sapling 3")
     end
     
     -- Turn left, move backwards 1, place sapling in front (position 4)
@@ -255,10 +241,10 @@ local function placeSaplings()
     turtle.back()
     turtle.select(SAPLING_SLOTS_START + 3)
     if not turtle.place() then
-        log("Failed to place sapling 4")
+        Version.log("Failed to place sapling 4")
     end
     
-    log("2x2 saplings planted")
+    Version.log("2x2 saplings planted")
 end
 
 -- Use bonemeal until tree grows
@@ -266,7 +252,7 @@ local function growTree()
     state.phase = "growing"
     saveState()
     
-    log("Growing tree with bonemeal...")
+    Version.log("Growing tree with bonemeal...")
     local attempts = 0
     local maxAttempts = 200
     
@@ -322,7 +308,7 @@ local function growTree()
             end
         elseif success and data.name and data.name:find("log") then
             -- Tree has grown! We detected a log
-            log("Tree grown! Used " .. attempts .. " bonemeal")
+            Version.log("Tree grown! Used " .. attempts .. " bonemeal")
             return true
         else
             -- Something else is there or nothing at all
@@ -345,7 +331,7 @@ local function harvestTree()
     state.treeHeight = 0
     saveState()
     
-    log("Harvesting tree...")
+    Version.log("Harvesting tree...")
     local logsThisTree = 0
     
     -- We're facing the front-left log of the 2x2
@@ -401,7 +387,7 @@ local function harvestTree()
         end
     end
     
-    log("Reached near top at height: " .. state.treeHeight)
+    Version.log("Reached near top at height: " .. state.treeHeight)
     
     -- Phase 2: Move forward to access the 4th column area
     turtle.forward()
@@ -472,7 +458,7 @@ local function harvestTree()
         end
     end
     
-    log("Cleared 4th column, total height: " .. state.treeHeight)
+    Version.log("Cleared 4th column, total height: " .. state.treeHeight)
     
     -- Phase 3: Descend back down, breaking any remaining logs below and in front
     for height = state.treeHeight, 1, -1 do
@@ -494,7 +480,7 @@ local function harvestTree()
         
     end
     
-    log("Harvested " .. logsThisTree .. " logs")
+    Version.log("Harvested " .. logsThisTree .. " logs")
     status.logsCollected = status.logsCollected + logsThisTree
     status.treesHarvested = status.treesHarvested + 1
     
@@ -519,7 +505,7 @@ local function depositItems()
     state.phase = "depositing"
     saveState()
     
-    log("Depositing items...")
+    Version.log("Depositing items...")
     
     -- Deposit logs into chest below
     for slot = 1, 16 do
@@ -554,13 +540,13 @@ local function depositItems()
     turtle.turnRight()
     turtle.turnRight()
     
-    log("Items deposited")
+    Version.log("Items deposited")
 end
 
 -- Install startup file
 local function installStartup()
     if not fs.exists("startup") and not fs.exists("startup.lua") then
-        log("Installing startup file...")
+        Version.log("Installing startup file...")
         local file = fs.open("startup.lua", "w")
         file.write('-- Auto-start tree farmer on boot\n')
         file.write('-- Update before running\n')
@@ -570,7 +556,7 @@ local function installStartup()
         file.write('print("Starting tree farmer daemon...")\n')
         file.write('shell.run("tree_farmer")\n')
         file.close()
-        log("Startup file installed!")
+        Version.log("Startup file installed!")
         return true
     end
     return false
@@ -582,28 +568,28 @@ local function mainLoop()
         -- Check if we're paused at the start of each cycle
         checkPauseState()
         
-        log("Starting fresh cycle...")
+        Version.log("Starting fresh cycle...")
         
         -- Proactive fuel check BEFORE starting cycle
         TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
         checkPauseState() -- Check after fuel lock
         
         -- Load resources
-        log("Loading fuel...")
+        Version.log("Loading fuel...")
         loadFuel()
         checkPauseState() -- Check after loading fuel
         
-        log("Loading saplings...")
+        Version.log("Loading saplings...")
         loadSaplings()
         checkPauseState() -- Check after loading saplings
         
-        log("Loading bonemeal...")
+        Version.log("Loading bonemeal...")
         loadBonemeal()
         checkPauseState() -- Check after loading bonemeal
         
         -- Check if we have required resources
         if not hasSaplings() then
-            log("No saplings available, waiting...")
+            Version.log("No saplings available, waiting...")
             sendAlert("No saplings available, waiting for resupply")
             status.lastError = "No saplings available"
             sendTelemetry()
@@ -612,7 +598,7 @@ local function mainLoop()
                 sleep(1)
             end
         elseif not hasBonemeal() then
-            log("No bonemeal available, waiting...")
+            Version.log("No bonemeal available, waiting...")
             sendAlert("No bonemeal available, waiting for resupply")
             status.lastError = "No bonemeal available"
             sendTelemetry()
@@ -625,28 +611,28 @@ local function mainLoop()
             sendTelemetry()
             
             -- Execute tree farming cycle
-            log("Planting 2x2 saplings...")
+            Version.log("Planting 2x2 saplings...")
             placeSaplings()
             checkPauseState() -- Check after planting
             
-            log("Growing tree...")
+            Version.log("Growing tree...")
             local grown = growTree()
             checkPauseState() -- Check after growing
             
             if grown then
-                log("Harvesting tree...")
+                Version.log("Harvesting tree...")
                 harvestTree()
                 checkPauseState() -- Check after harvesting
                 
-                log("Depositing items...")
+                Version.log("Depositing items...")
                 depositItems()
                 checkPauseState() -- Check after depositing
                 
-                log("Tree farming cycle complete!")
+                Version.log("Tree farming cycle complete!")
                 sendTelemetry()
             else
                 -- Growth failed, clean up saplings and try again
-                log("Growth failed, cleaning up...")
+                Version.log("Growth failed, cleaning up...")
                 for i = 1, 4 do
                     turtle.digDown()
                 end
@@ -660,7 +646,7 @@ end
 
 -- Main program
 local function main()
-    log("Networked Tree Farmer Starting...")
+    Version.log("Networked Tree Farmer Starting...")
     
     -- Print version if available
     if Version then
@@ -670,12 +656,12 @@ local function main()
     
     -- Initialize network
     if not Network.init() then
-        log("ERROR: No modem found!")
-        log("Cannot connect to central computer.")
-        log("Please attach a wireless modem and reboot.")
+        Version.log("ERROR: No modem found!")
+        Version.log("Cannot connect to central computer.")
+        Version.log("Please attach a wireless modem and reboot.")
         return
     else
-        log("Network initialized")
+        Version.log("Network initialized")
         if not os.getComputerLabel() then
             os.setComputerLabel(TURTLE_NAME)
         end
@@ -691,26 +677,26 @@ local function main()
     
     -- Check if we should be paused before starting work
     if sharedState.operatingMode == "paused" then
-        log("Starting in paused mode")
+        Version.log("Starting in paused mode")
     end
     
     -- Check if we're resuming from a saved state
     local resuming = loadState()
     
     if resuming then
-        log("Resuming from saved state...")
-        log("Phase: " .. state.phase)
+        Version.log("Resuming from saved state...")
+        Version.log("Phase: " .. state.phase)
         sendTelemetry()
         
         -- Only resume work if not paused
         if sharedState.operatingMode ~= "paused" then
             -- Complete the interrupted cycle based on phase
             if state.phase == "harvesting" then
-                log("Completing harvest...")
+                Version.log("Completing harvest...")
                 harvestTree()
                 depositItems()
             elseif state.phase == "growing" or state.phase == "planting" then
-                log("Restarting growth cycle...")
+                Version.log("Restarting growth cycle...")
                 -- Try to grow if saplings still there
                 if isSapling() then
                     growTree()
@@ -719,15 +705,15 @@ local function main()
                 depositItems()
             end
             
-            log("Resumed cycle complete!")
+            Version.log("Resumed cycle complete!")
             sendTelemetry()
         else
-            log("Paused - will wait for resume in main loop")
+            Version.log("Paused - will wait for resume in main loop")
         end
     end
     
-    log("Entering main loop...")
-    log("Mode: " .. sharedState.operatingMode)
+    Version.log("Entering main loop...")
+    Version.log("Mode: " .. sharedState.operatingMode)
     
     -- Create command listener
     local commandListener = Worker.createCommandListener(sharedState, {
@@ -742,9 +728,9 @@ local function main()
             while true do
                 local success, err = pcall(mainLoop)
                 if not success then
-                    log("Error in main loop: " .. tostring(err))
+                    Version.log("Error in main loop: " .. tostring(err))
                     sendAlert("Critical error: " .. tostring(err))
-                    log("Restarting in 10 seconds...")
+                    Version.log("Restarting in 10 seconds...")
                     sleep(10)
                 end
             end
@@ -755,3 +741,4 @@ end
 
 -- Run the program
 main()
+
