@@ -6,10 +6,21 @@
 local GITHUB_USER = "Blueblood1"
 local GITHUB_REPO = "mc-base"
 local GITHUB_BRANCH = "master"
+local LOCAL_SERVER = "http://localhost:8080"
 
--- Build GitHub raw URL
+-- Build URL with fallback logic
 local function buildUrl(path)
-    -- Add cache buster to avoid GitHub CDN caching
+    -- Try local server first
+    local localUrl = LOCAL_SERVER .. "/" .. path
+    
+    -- Test if local server is available with a quick timeout
+    local response = http.get(localUrl, nil, nil, 2)
+    if response then
+        response.close()
+        return localUrl
+    end
+    
+    -- Fallback to GitHub with cache buster
     local cacheBuster = "?cb=" .. os.epoch("utc")
     return string.format(
         "https://raw.githubusercontent.com/%s/%s/%s/%s%s",

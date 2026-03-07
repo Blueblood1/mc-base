@@ -3,14 +3,25 @@
 
 local Updater = {}
 
--- GitHub repository configuration
+-- Server configuration
+Updater.LOCAL_SERVER = "http://localhost:8080"
 Updater.GITHUB_USER = "Blueblood1"
 Updater.GITHUB_REPO = "mc-base"
 Updater.GITHUB_BRANCH = "master"
 
--- Build GitHub raw URL
-local function buildGitHubUrl(path)
-    -- Add timestamp as query parameter to bust cache
+-- Build URL with fallback logic
+local function buildUrl(path)
+    -- Try local server first
+    local localUrl = Updater.LOCAL_SERVER .. "/" .. path
+    
+    -- Test if local server is available with a quick timeout
+    local response = http.get(localUrl, nil, nil, 2)
+    if response then
+        response.close()
+        return localUrl
+    end
+    
+    -- Fallback to GitHub with cache buster
     local cacheBuster = "?cb=" .. os.epoch("utc")
     return string.format(
         "https://raw.githubusercontent.com/%s/%s/%s/%s%s",
@@ -50,13 +61,13 @@ function Updater.download(githubPath, localFilename)
         return false, "HTTP API is not enabled"
     end
     
-    local url = buildGitHubUrl(githubPath)
+    local url = buildUrl(githubPath)
     print("Downloading " .. localFilename .. "...")
-    print("From: " .. githubPath)
+    print("From: " .. (url:match("localhost") and "local server" or "GitHub"))
     
     local response = http.get(url)
     if not response then
-        return false, "Failed to download from GitHub"
+        return false, "Failed to download"
     end
     
     local content = response.readAll()
