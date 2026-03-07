@@ -79,61 +79,6 @@ sendAlert = function(message)
     end
 end
 
--- Wait for initial connection and mode from central
-local function waitForCentralConnection()
-    Version.log("Waiting for connection to central computer...")
-    Version.log("Requesting initial mode...")
-    
-    while not sharedState.centralConnected do
-        -- Try to find central
-        if not sharedState.centralId then
-            sharedState.centralId = Network.lookup("central")
-        end
-        
-        -- Request our mode
-        if sharedState.centralId then
-            Network.send(sharedState.centralId, Network.MSG_TYPES.COMMAND, {
-                command = "request_mode",
-                name = TURTLE_NAME .. " #" .. os.getComputerID()
-            })
-        else
-            Network.broadcast(Network.MSG_TYPES.COMMAND, {
-                command = "request_mode",
-                name = TURTLE_NAME .. " #" .. os.getComputerID()
-            })
-        end
-        
-        -- Wait for response
-        local timeout = os.startTimer(3)
-        while true do
-            local event, param1, param2, param3 = os.pullEvent()
-            
-            if event == "timer" and param1 == timeout then
-                Version.log("No response, retrying...")
-                break
-            elseif event == "rednet_message" then
-                local senderId = param1
-                local message = param2
-                local protocol = param3
-                
-                if protocol == Network.PROTOCOL and message and message.type == Network.MSG_TYPES.COMMAND then
-                    local data = message.data
-                    if data.command == "set_mode" and data.mode then
-                        sharedState.operatingMode = data.mode
-                        sharedState.centralId = senderId
-                        sharedState.centralConnected = true
-                        Version.log("Connected to central! Mode: " .. sharedState.operatingMode)
-                        os.cancelTimer(timeout)
-                        return
-                    end
-                end
-            end
-        end
-        
-        sleep(2)
-    end
-end
-
 -- Dump inventory into chest below
 local function dumpInventory()
     local dumped = false
@@ -225,7 +170,7 @@ local function main()
     installStartup()
     
     -- Wait for connection to central and get initial mode
-    waitForCentralConnection()
+    TurtleLib.waitForCentralConnection(sharedState, TURTLE_NAME)
     
     -- Send initial telemetry
     sendTelemetry()

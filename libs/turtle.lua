@@ -248,4 +248,67 @@ function TurtleLib.checkPauseState(state, sendTelemetry)
     end
 end
 
+-- Wait for initial connection and mode from central computer
+-- Parameters:
+--   state: shared state table with:
+--     centralId, centralConnected, operatingMode
+--   turtleName: name of the turtle (e.g., "Tree Farmer")
+function TurtleLib.waitForCentralConnection(state, turtleName)
+    local Network = require("network")
+    local Version = require("version")
+    
+    Version.log("Waiting for connection to central computer...")
+    Version.log("Requesting initial mode...")
+    
+    while not state.centralConnected do
+        -- Try to find central
+        if not state.centralId then
+            state.centralId = Network.lookup("central")
+        end
+        
+        -- Request our mode
+        local fullName = turtleName .. " #" .. os.getComputerID()
+        if state.centralId then
+            Network.send(state.centralId, Network.MSG_TYPES.COMMAND, {
+                command = "request_mode",
+                name = fullName
+            })
+        else
+            Network.broadcast(Network.MSG_TYPES.COMMAND, {
+                command = "request_mode",
+                name = fullName
+            })
+        end
+        
+        -- Wait for response
+        local timeout = os.startTimer(3)
+        while true do
+            local event, param1, param2, param3 = os.pullEvent()
+            
+            if event == "timer" and param1 == timeout then
+                Version.log("No response, retrying...")
+                break
+            elseif event == "rednet_message" then
+                local senderId = param1
+                local message = param2
+                local protocol = param3
+                
+                if protocol == Network.PROTOCOL and message and message.type == Network.MSG_TYPES.COMMAND then
+                    local data = message.data
+                    if data.command == "set_mode" and data.mode then
+                        state.operatingMode = data.mode
+                        state.centralId = senderId
+                        state.centralConnected = true
+                        Version.log("Connected to central! Mode: " .. state.operatingMode)
+                        os.cancelTimer(timeout)
+                        return
+                    end
+                end
+            end
+        end
+        
+        sleep(2)
+    end
+end
+
 return TurtleLib

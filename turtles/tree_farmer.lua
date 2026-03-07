@@ -30,116 +30,17 @@ local STATE_FILE = "tree_farmer_state.txt"
 local TELEMETRY_INTERVAL = 10
 local TURTLE_NAME = "Tree Farmer"
 
--- Central computer ID (will be discovered)
-local centralId = nil
-
--- Operating mode
-local operatingMode = nil -- nil = not connected, "running" or "paused"
-local stopRequested = false
-local centralConnected = false
-
--- Wait for initial connection and mode from central
-local function waitForCentralConnection()
-    log("Waiting for connection to central computer...")
-    log("Requesting initial mode...")
-    
-    while not centralConnected do
-        -- Try to find central
-        if not centralId then
-            centralId = Network.lookup("central")
-        end
-        
-        -- Request our mode
-        if centralId then
-            Network.send(centralId, Network.MSG_TYPES.COMMAND, {
-                command = "request_mode",
-                name = "Tree Farmer #" .. os.getComputerID()
-            })
-        else
-            Network.broadcast(Network.MSG_TYPES.COMMAND, {
-                command = "request_mode",
-                name = "Tree Farmer #" .. os.getComputerID()
-            })
-        end
-        
-        -- Wait for response
-        local timeout = os.startTimer(3)
-        while true do
-            local event, param1, param2, param3 = os.pullEvent()
-            
-            if event == "timer" and param1 == timeout then
-                log("No response, retrying...")
-                break
-            elseif event == "rednet_message" then
-                local senderId = param1
-                local message = param2
-                local protocol = param3
-                
-                if protocol == Network.PROTOCOL and message and message.type == Network.MSG_TYPES.COMMAND then
-                    local data = message.data
-                    if data.command == "set_mode" and data.mode then
-                        operatingMode = data.mode
-                        centralId = senderId
-                        centralConnected = true
-                        log("Connected to central! Mode: " .. operatingMode)
-                        os.cancelTimer(timeout)
-                        return
-                    end
-                end
-            end
-        end
-        
-        sleep(2)
-    end
-end
+-- Shared state for command listener
+local sharedState = {
+    centralId = nil,
+    centralConnected = false,
+    operatingMode = "running",
+    stopRequested = false
+}
 
 -- Forward declarations
 local sendAlert
 local sendTelemetry
-
--- Command listener for parallel execution
-local function commandListener()
-    while not stopRequested do
-        local senderId, msgType, data = Network.receive(1)
-        if senderId and msgType == Network.MSG_TYPES.COMMAND then
-            if data.command == "report_status" then
-                sendTelemetry()
-            elseif data.command == "set_mode" then
-                local oldMode = operatingMode
-                operatingMode = data.mode or "running"
-                centralId = senderId
-                centralConnected = true
-                if oldMode ~= operatingMode then
-                    sendAlert("Mode changed: " .. tostring(oldMode) .. " -> " .. operatingMode)
-                end
-                -- Send acknowledgment
-                Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
-                    ack = true,
-                    command = "set_mode",
-                    mode = operatingMode
-                })
-            elseif data.command == "stop" then
-                sendAlert("Received stop command")
-                stopRequested = true
-            elseif data.command == "update" then
-                sendAlert("Received update command, updating...")
-                local results = Updater.updateLocal()
-                local successCount = 0
-                local failCount = 0
-                for filename, result in pairs(results) do
-                    if result.success then
-                        successCount = successCount + 1
-                    else
-                        failCount = failCount + 1
-                    end
-                end
-                sendAlert("Update complete: " .. successCount .. " success, " .. failCount .. " failed")
-                sleep(2)
-                os.reboot()
-            end
-        end
-    end
-end
 
 -- State tracking
 local state = {
@@ -184,8 +85,8 @@ end
 
 -- Send telemetry to central computer
 sendTelemetry = function()
-    if not centralId then
-        centralId = Network.lookup("central")
+    if not sharedState.centralId then
+        sharedState.centralId = Network.lookup("central")
     end
     
     local fuel = TurtleLib.getFuelStatus()
@@ -215,8 +116,8 @@ sendTelemetry = function()
         telemetryData.status = "warning"
     end
     
-    if centralId then
-        Network.send(centralId, Network.MSG_TYPES.TELEMETRY, telemetryData)
+    if sharedState.centralId then
+        Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, telemetryData)
     else
         Network.broadcast(Network.MSG_TYPES.TELEMETRY, telemetryData)
     end
@@ -225,14 +126,14 @@ end
 -- Send alert to central computer
 sendAlert = function(message)
     status.lastError = message
-    if centralId then
-        Network.send(centralId, Network.MSG_TYPES.ALERT, {
-            name = TURTLE_NAME,
+    if sharedState.centralId then
+        Network.send(sharedState.centralId, Network.MSG_TYPES.ALERT, {
+            name = TURTLE_NAME .. " #" .. os.getComputerID(),
             message = message
         })
     else
         Network.broadcast(Network.MSG_TYPES.ALERT, {
-            name = TURTLE_NAME,
+            name = TURTLE_NAME .. " #" .. os.getComputerID(),
             message = message
         })
     end
@@ -240,11 +141,7 @@ end
 
 -- Check if paused and wait until resumed
 local function checkPauseState()
-    while operatingMode == "paused" do
-        log("Paused - waiting for resume...")
-        sendTelemetry()
-        sleep(2)
-    end
+    TurtleLib.checkPauseState(sharedState, sendTelemetry)
 end
 
 -- Refuel from the last slot (only if it's actually fuel)
@@ -855,13 +752,13 @@ local function main()
     installStartup()
     
     -- Wait for connection to central and get initial mode
-    waitForCentralConnection()
+    TurtleLib.waitForCentralConnection(sharedState, TURTLE_NAME)
     
     -- Send initial telemetry
     sendTelemetry()
     
     -- Check if we should be paused before starting work
-    if operatingMode == "paused" then
+    if sharedState.operatingMode == "paused" then
         log("Starting in paused mode")
     end
     
@@ -896,7 +793,13 @@ local function main()
     end
     
     log("Entering main loop...")
-    log("Mode: " .. operatingMode)
+    log("Mode: " .. sharedState.operatingMode)
+    
+    -- Create command listener
+    local commandListener = TurtleLib.createCommandListener(sharedState, {
+        sendAlert = sendAlert,
+        sendTelemetry = sendTelemetry
+    })
     
     -- Run main loop and command listener in parallel
     -- Use waitForAll so both keep running
