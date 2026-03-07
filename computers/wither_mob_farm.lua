@@ -125,43 +125,47 @@ local function waitForCentralConnection()
     local timeout = os.startTimer(5)
     local modeReceived = false
     
+    Version.log("Waiting for response...")
+    
     while not modeReceived do
         local event, param1, param2, param3 = os.pullEvent()
+        
+        Version.log("Event: " .. event)
         
         if event == "timer" and param1 == timeout then
             Version.log("Timeout waiting for mode, defaulting to paused")
             break
         elseif event == "rednet_message" then
-            Version.log("Received rednet message from " .. param1)
+            Version.log("Received rednet_message event")
+            Version.log("Param1 (sender): " .. tostring(param1))
+            Version.log("Param3 (protocol): " .. tostring(param3))
             
-            -- Try to receive with protocol filter
-            local senderId, msgType, data = Network.receive(0)
-            if senderId then
-                Version.log("Message type: " .. tostring(msgType))
-                if data and data.command then
-                    Version.log("Command: " .. data.command)
-                end
+            -- Receive without protocol filter to see everything
+            local rawSender, rawMessage, rawProtocol = rednet.receive(nil, 0)
+            if rawSender then
+                Version.log("Raw receive successful")
+                Version.log("Sender: " .. rawSender)
+                Version.log("Protocol: " .. tostring(rawProtocol))
+                Version.log("Message type: " .. type(rawMessage))
                 
-                if senderId == sharedState.centralId and msgType == Network.MSG_TYPES.COMMAND then
-                    if data.command == "set_mode" then
-                        sharedState.operatingMode = data.mode
-                        Version.log("Initial mode set to: " .. data.mode)
-                        modeReceived = true
-                        os.cancelTimer(timeout)
+                -- Check if it's our protocol
+                if rawProtocol == Network.PROTOCOL then
+                    Version.log("Protocol matches!")
+                    if type(rawMessage) == "table" and rawMessage.type == Network.MSG_TYPES.COMMAND then
+                        Version.log("Message type is COMMAND")
+                        if rawMessage.data and rawMessage.data.command == "set_mode" then
+                            Version.log("It's a set_mode command!")
+                            sharedState.operatingMode = rawMessage.data.mode
+                            Version.log("Initial mode set to: " .. sharedState.operatingMode)
+                            modeReceived = true
+                            os.cancelTimer(timeout)
+                        end
                     end
                 else
-                    Version.log("Ignoring message (sender=" .. senderId .. ", expected=" .. sharedState.centralId .. ")")
+                    Version.log("Protocol mismatch: expected " .. Network.PROTOCOL)
                 end
             else
-                -- Try raw receive to see what protocol it is
-                Version.log("Message not for our protocol, checking raw...")
-                local rawSender, rawMessage, rawProtocol = rednet.receive(nil, 0)
-                if rawSender then
-                    Version.log("Raw protocol: " .. tostring(rawProtocol))
-                    Version.log("Raw sender: " .. rawSender)
-                else
-                    Version.log("No message in queue")
-                end
+                Version.log("Raw receive returned nil")
             end
         end
     end
