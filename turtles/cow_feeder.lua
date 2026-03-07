@@ -180,9 +180,8 @@ local function checkFuelLock()
             -- Check fuel again
             fuel = TurtleLib.getFuelStatus()
             
-            -- Send telemetry and check commands
+            -- Send telemetry
             sendTelemetry()
-            checkCommands()
             
             sleep(5)
         end
@@ -296,7 +295,6 @@ local function navigateGrid()
                 saveState()
                 
                 feedCows()
-                checkCommands()
                 
                 -- Move forward unless we're at the end
                 if row < GRID_SIZE then
@@ -320,7 +318,6 @@ local function navigateGrid()
                 saveState()
                 
                 feedCows()
-                checkCommands()
                 
                 -- Move backward unless we're at the end
                 if row > 1 then
@@ -450,9 +447,8 @@ local function mainLoop()
             status.lastError = "No food available"
             sendTelemetry()
             
-            -- Wait and check for commands
+            -- Wait for resupply
             for i = 1, 60 do -- Wait 60 seconds
-                checkCommands()
                 sleep(1)
             end
         else
@@ -476,7 +472,6 @@ local function mainLoop()
             sendTelemetry()
             
             for i = 1, 120 do
-                checkCommands()
                 sleep(1)
                 
                 -- Send telemetry every 30 seconds during cooldown
