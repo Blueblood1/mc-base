@@ -302,9 +302,15 @@ local function main()
         while true do
             local event, param1, param2, param3 = os.pullEvent()
             if event == "rednet_message" then
-                local senderId, msgType, data = Network.receive(0)
-                if senderId then
-                    handleMessage(senderId, msgType, data)
+                -- param1 = sender ID
+                -- param2 = message
+                -- param3 = protocol
+                
+                if param3 == Network.PROTOCOL then
+                    -- Message is for our protocol
+                    if type(param2) == "table" then
+                        handleMessage(param1, param2.type, param2.data)
+                    end
                 end
             end
         end
