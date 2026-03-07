@@ -218,8 +218,20 @@ function Updater.updateLocal()
     local results = {}
     local updated = 0
     
+    -- List of files that should always be downloaded (even if they don't exist)
+    local alwaysDownload = {
+        ["network.lua"] = true,
+        ["worker.lua"] = true,
+        ["turtle.lua"] = true,
+        ["updater.lua"] = true,
+        ["version.lua"] = true,
+        ["state.lua"] = true,
+        ["ui.lua"] = true
+    }
+    
     for localFilename, githubPath in pairs(Updater.MANIFEST) do
-        if fs.exists(localFilename) and localFilename ~= "BUILD_NUMBER" then
+        -- Download if file exists OR if it's in the alwaysDownload list
+        if (fs.exists(localFilename) or alwaysDownload[localFilename]) and localFilename ~= "BUILD_NUMBER" then
             local success, msg = Updater.download(githubPath, localFilename)
             results[localFilename] = {success = success, message = msg}
             if success then
