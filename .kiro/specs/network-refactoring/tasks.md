@@ -36,8 +36,8 @@
 
 ## Phase 4: Update Cow Feeder
 
-- [ ] 5. Refactor `turtles/cow_feeder.lua` to use new patterns
-  - [ ] 5.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
+- [-] 5. Refactor `turtles/cow_feeder.lua` to use new patterns
+  - [x] 5.1 Replace `TurtleLib.createCommandListener()` with `Worker.createCommandListener()`
   - [ ] 5.2 Replace `TurtleLib.waitForCentralConnection()` with `Worker.waitForCentralConnection()`
   - [ ] 5.3 Calculate cycle fuel requirement (CYCLE_FUEL_REQUIREMENT = 125)
   - [ ] 5.4 Add `TurtleLib.ensureFuelForCycle()` call at start of mainLoop

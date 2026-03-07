@@ -3,10 +3,12 @@
 
 local Network = require("network")
 local TurtleLib = require("turtle")
+local Worker = require("worker")
 local Updater = require("updater")
 local Version = require("version")
 
 -- Configuration
+local CYCLE_FUEL_REQUIREMENT = 125 -- Fuel needed for one complete cycle
 local FUEL_SLOT = 16
 local FOOD_SLOTS_START = 1
 local FOOD_SLOTS_END = 15
@@ -127,14 +129,6 @@ sendAlert = function(message)
     end
 end
 
--- Refuel from the last slot
-local function refuel()
-    turtle.select(FUEL_SLOT)
-    if turtle.getItemCount(FUEL_SLOT) > 0 then
-        turtle.refuel(1)
-    end
-end
-
 -- Load fuel from chest on the right
 local function loadFuel()
     -- First, dump any food back to food chest (on left)
@@ -147,49 +141,13 @@ local function loadFuel()
     end
     turtle.turnRight()
     
-    -- Now load fuel
-    local success, fuelPercent = TurtleLib.loadFuelFromChest("right", 80)
+    -- Now load fuel using TurtleLib with cleanup
+    local cleanupDirections = {[""] = "left"} -- Food chest is on left
+    local success, fuelPercent = TurtleLib.loadFuelFromChestWithCleanup("right", 80, cleanupDirections)
     
     if not success or fuelPercent < 80 then
         sendAlert("Could not reach 80% fuel (currently " .. fuelPercent .. "%)")
         status.lastError = "Low fuel: " .. fuelPercent .. "%"
-    end
-end
-
--- Check fuel and enter fuel lock if critically low
-local function checkFuelLock()
-    local fuel = TurtleLib.getFuelStatus()
-    
-    if fuel.percent <= 5 then
-        Version.log("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
-        sendAlert("FUEL LOCK: Critical fuel level, waiting for refuel")
-        status.lastError = "FUEL LOCK: Critical fuel"
-        sendTelemetry()
-        
-        -- Stay in fuel lock until we get above 5%
-        while fuel.percent <= 5 do
-            Version.log("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
-            
-            -- Try to load fuel
-            turtle.select(FUEL_SLOT)
-            turtle.turnRight()
-            turtle.suck()
-            turtle.turnLeft()
-            refuel()
-            
-            -- Check fuel again
-            fuel = TurtleLib.getFuelStatus()
-            
-            -- Send telemetry
-            sendTelemetry()
-            
-            sleep(5)
-        end
-        
-        Version.log("Fuel lock released: " .. fuel.percent .. "%")
-        sendAlert("Fuel lock released: " .. fuel.percent .. "%")
-        status.lastError = nil
-        sendTelemetry()
     end
 end
 
@@ -308,7 +266,6 @@ local function navigateGrid()
                             sleep(30)
                         end
                     end
-                    refuel()
                 end
             end
         else
@@ -331,7 +288,6 @@ local function navigateGrid()
                             sleep(30)
                         end
                     end
-                    refuel()
                 end
             end
         end
@@ -346,7 +302,6 @@ local function navigateGrid()
                 turtle.forward()
             end
             turtle.turnRight()
-            refuel()
         end
     end
     
@@ -370,7 +325,6 @@ local function returnHome()
     -- Go to column 1 (front-right)
     for i = 1, GRID_SIZE - 1 do
         turtle.forward()
-        refuel()
     end
     
     -- Now at row 9, column 1 (front-right of grid)
@@ -380,7 +334,6 @@ local function returnHome()
     -- Go back through the grid and exit (8 rows + 2 exit steps = 10 total)
     for i = 1, GRID_SIZE - 1 + 2 do
         turtle.forward()
-        refuel()
     end
     
     -- Descend 2 blocks
@@ -400,6 +353,7 @@ local function returnHome()
     state.height = 0
     status.cyclesCompleted = status.cyclesCompleted + 1
     status.lastError = nil
+    sendTelemetry()  -- Send telemetry immediately when returning to idle
 end
 
 -- Install startup file
@@ -428,8 +382,8 @@ local function mainLoop()
         
         Version.log("Starting fresh cycle...")
         
-        -- Check fuel lock BEFORE starting cycle
-        checkFuelLock()
+        -- Proactive fuel check BEFORE starting cycle
+        TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
         TurtleLib.checkPauseState(sharedState, sendTelemetry)
         
         -- Load resources
@@ -506,7 +460,7 @@ local function main()
     installStartup()
     
     -- Wait for connection to central and get initial mode
-    TurtleLib.waitForCentralConnection(sharedState, TURTLE_NAME)
+    Worker.waitForCentralConnection(sharedState, TURTLE_NAME)
     
     -- Send initial telemetry
     sendTelemetry()
@@ -548,7 +502,7 @@ local function main()
     Version.log("Mode: " .. sharedState.operatingMode)
     
     -- Create command listener
-    local commandListener = TurtleLib.createCommandListener(sharedState, {
+    local commandListener = Worker.createCommandListener(sharedState, {
         sendAlert = sendAlert,
         sendTelemetry = sendTelemetry
     })
