@@ -111,9 +111,8 @@ local function install(args)
             print("  1. pig_feeder - Pig feeding automation")
             print("  2. cow_feeder - Cow feeding automation")
             print("  3. tree_farmer - Spruce tree farming")
-            print("  4. slayer - Mob killing")
             print("")
-            write("Select turtle type (1-4): ")
+            write("Select turtle type (1-3): ")
             local choice = read()
             
             if choice == "1" then
@@ -122,8 +121,6 @@ local function install(args)
                 turtleType = "cow_feeder"
             elseif choice == "3" then
                 turtleType = "tree_farmer"
-            elseif choice == "4" then
-                turtleType = "slayer"
             else
                 print("Invalid choice, defaulting to pig_feeder")
                 turtleType = "pig_feeder"
