@@ -149,14 +149,17 @@ local function install(args)
             print("Available computer types:")
             print("  1. central_computer - Main control system")
             print("  2. wither_mob_farm - Wither mob farm controller")
+            print("  3. wither_boss_farm - Wither boss farm door controller")
             print("")
-            write("Select computer type (1-2): ")
+            write("Select computer type (1-3): ")
             local choice = read()
             
             if choice == "1" then
                 turtleType = "central_computer"
             elseif choice == "2" then
                 turtleType = "wither_mob_farm"
+            elseif choice == "3" then
+                turtleType = "wither_boss_farm"
             else
                 print("Invalid choice, defaulting to central_computer")
                 turtleType = "central_computer"
