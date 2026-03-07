@@ -143,7 +143,7 @@ local function loadFuel()
     
     -- Now load fuel using TurtleLib with cleanup
     local cleanupDirections = {[""] = "left"} -- Food chest is on left
-    local success, fuelPercent = TurtleLib.loadFuelFromChestWithCleanup("right", 80, cleanupDirections)
+    local success, fuelPercent = TurtleLib.loadFuelFromChestWithCleanup("right", cleanupDirections, 80)
     
     if not success or fuelPercent < 80 then
         sendAlert("Could not reach 80% fuel (currently " .. fuelPercent .. "%)")
