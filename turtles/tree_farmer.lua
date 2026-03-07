@@ -52,11 +52,13 @@ local function waitForCentralConnection()
         -- Request our mode
         if centralId then
             Network.send(centralId, Network.MSG_TYPES.COMMAND, {
-                command = "request_mode"
+                command = "request_mode",
+                name = "Tree Farmer #" .. os.getComputerID()
             })
         else
             Network.broadcast(Network.MSG_TYPES.COMMAND, {
-                command = "request_mode"
+                command = "request_mode",
+                name = "Tree Farmer #" .. os.getComputerID()
             })
         end
         
