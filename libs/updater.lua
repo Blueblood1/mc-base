@@ -59,6 +59,7 @@ Updater.MANIFEST = {
     
     -- Pocket Computer
     ["remote.lua"] = "pocket/remote.lua",
+    ["nettest.lua"] = "pocket/nettest.lua",
     
     -- Turtles
     ["pig_feeder.lua"] = "turtles/pig_feeder.lua",

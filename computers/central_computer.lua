@@ -434,66 +434,58 @@ local function main()
     -- Initial display
     updateDisplay()
     
-    -- Main loop
-    local lastTelemetryRequest = os.epoch("utc")
-    local lastDisplayUpdate = os.epoch("utc")
-    
-    -- Start a timer for periodic checks
-    local checkTimer = os.startTimer(0.5)
-    
-    while true do
-        -- Wait for any event
-        local event, param1, param2, param3 = os.pullEvent()
-        
-        -- Handle timer for periodic tasks
-        if event == "timer" and param1 == checkTimer then
-            -- Check for network messages
-            while true do
-                local senderId, msgType, data = Network.receive(0)
-                if not senderId then break end
-                handleMessage(senderId, msgType, data)
-            end
-            
-            local now = os.epoch("utc")
-            
-            -- Periodic telemetry
-            if (now - lastTelemetryRequest) > (TELEMETRY_INTERVAL * 1000) then
-                requestTelemetry()
-                lastTelemetryRequest = now
-            end
-            
-            -- Auto-refresh display
-            if (now - lastDisplayUpdate) > (DISPLAY_REFRESH * 1000) then
-                updateDisplay()
-                lastDisplayUpdate = now
-            end
-            
-            -- Restart timer
-            checkTimer = os.startTimer(0.5)
-            
-        -- Handle rednet messages
-        elseif event == "rednet_message" then
-            -- Process the message that triggered this event
+    -- Main loop with parallel processing
+    local function messageListener()
+        while true do
+            local event = os.pullEvent("rednet_message")
             local senderId, msgType, data = Network.receive(0)
             if senderId then
                 handleMessage(senderId, msgType, data)
             end
-            
-        -- Handle monitor touch
-        elseif event == "monitor_touch" then
-            local x, y = param2, param3
-            screen:handleClick(x, y)
-            
-        -- Handle terminal mouse click
-        elseif event == "mouse_click" then
-            local x, y = param2, param3
-            screen:handleClick(x, y)
-            
-        -- Handle keyboard
-        elseif event == "key" and param1 == keys.q then
-            break
         end
     end
+    
+    local function uiAndPeriodicTasks()
+        local lastTelemetryRequest = os.epoch("utc")
+        local lastDisplayUpdate = os.epoch("utc")
+        local checkTimer = os.startTimer(0.5)
+        
+        while true do
+            local event, param1, param2, param3 = os.pullEvent()
+            
+            if event == "timer" and param1 == checkTimer then
+                local now = os.epoch("utc")
+                
+                -- Periodic telemetry
+                if (now - lastTelemetryRequest) > (TELEMETRY_INTERVAL * 1000) then
+                    requestTelemetry()
+                    lastTelemetryRequest = now
+                end
+                
+                -- Auto-refresh display
+                if (now - lastDisplayUpdate) > (DISPLAY_REFRESH * 1000) then
+                    updateDisplay()
+                    lastDisplayUpdate = now
+                end
+                
+                checkTimer = os.startTimer(0.5)
+                
+            elseif event == "monitor_touch" then
+                local x, y = param2, param3
+                screen:handleClick(x, y)
+                
+            elseif event == "mouse_click" then
+                local x, y = param2, param3
+                screen:handleClick(x, y)
+                
+            elseif event == "key" and param1 == keys.q then
+                break
+            end
+        end
+    end
+    
+    -- Run both in parallel
+    parallel.waitForAny(messageListener, uiAndPeriodicTasks)
     
     Version.log("Shutting down...")
     Network.close()
