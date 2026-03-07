@@ -2,15 +2,23 @@
 
 ## One-Line Install
 
+### From GitHub (Production)
 On any ComputerCraft computer or turtle, run:
 
 ```lua
 wget run https://raw.githubusercontent.com/Blueblood1/mc-base/master/installer/install.lua
 ```
 
+### From Local CDN (Development)
+If you have the local server running:
+
+```lua
+wget run http://127.0.0.1:8080/installer/install.lua
+```
+
 That's it! The installer will:
 - Detect if it's a turtle or computer
-- Download the correct files from GitHub
+- Download the correct files
 - Set up auto-updates
 - Create startup scripts
 
