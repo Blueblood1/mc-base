@@ -141,17 +141,12 @@ end
 
 -- Handle door commands from turtle
 local function handleDoorCommand(senderId, data)
-    Version.log("Received door command: " .. data.command .. " from " .. senderId)
-    
     if data.command == "open_door" then
         local cellNumber = data.cell
-        Version.log("Opening door " .. cellNumber)
         local success, err = openDoor(cellNumber)
         
         if success then
             doorState.turtleId = senderId
-            Version.log("Door opened successfully, sending response")
-            -- Send acknowledgment
             Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
                 success = true,
                 cell = cellNumber,
@@ -159,7 +154,6 @@ local function handleDoorCommand(senderId, data)
             })
             sendTelemetry()
         else
-            Version.log("Failed to open door: " .. tostring(err))
             Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
                 success = false,
                 cell = cellNumber,
@@ -171,12 +165,9 @@ local function handleDoorCommand(senderId, data)
         
     elseif data.command == "close_door" then
         local cellNumber = data.cell
-        Version.log("Closing door " .. cellNumber)
         local success, err = closeDoor(cellNumber)
         
         if success then
-            Version.log("Door closed successfully, sending response")
-            -- Send acknowledgment
             Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
                 success = true,
                 cell = cellNumber,
@@ -184,7 +175,6 @@ local function handleDoorCommand(senderId, data)
             })
             sendTelemetry()
         else
-            Version.log("Failed to close door: " .. tostring(err))
             Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
                 success = false,
                 cell = cellNumber,
@@ -207,13 +197,9 @@ local function createDoorCommandListener()
                 local message = param2
                 local protocol = param3
                 
-                Version.log("Received message from " .. senderId .. ", protocol: " .. tostring(protocol))
-                
                 if protocol == Network.PROTOCOL and type(message) == "table" then
                     local msgType = message.type
                     local data = message.data
-                    
-                    Version.log("Message type: " .. tostring(msgType) .. ", command: " .. tostring(data and data.command))
                     
                     if msgType == Network.MSG_TYPES.COMMAND then
                         -- Handle standard worker commands
