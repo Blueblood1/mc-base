@@ -84,6 +84,58 @@ sendAlert = function(message)
     end
 end
 
+-- Load resources from chests
+local function loadResources()
+    Version.log("Loading resources...")
+    
+    -- Load soul sand from left
+    Version.log("Loading soul sand from left...")
+    turtle.turnLeft()
+    turtle.select(SOUL_SAND_SLOT)
+    for i = 1, 4 do  -- Try to fill the slot
+        if turtle.getItemCount(SOUL_SAND_SLOT) >= 64 then
+            break
+        end
+        turtle.suck()
+    end
+    
+    local soulSandCount = turtle.getItemCount(SOUL_SAND_SLOT)
+    if soulSandCount == 0 then
+        sendAlert("No soul sand loaded!")
+        return false
+    end
+    Version.log("Loaded " .. soulSandCount .. " soul sand")
+    
+    -- Turn back to center
+    turtle.turnRight()
+    
+    -- Load skulls/dirt from behind
+    Version.log("Loading skulls from behind...")
+    turtle.turnRight()
+    turtle.turnRight()
+    turtle.select(SKULL_SLOT)
+    for i = 1, 4 do  -- Try to fill the slot
+        if turtle.getItemCount(SKULL_SLOT) >= 64 then
+            break
+        end
+        turtle.suck()
+    end
+    
+    local skullCount = turtle.getItemCount(SKULL_SLOT)
+    if skullCount == 0 then
+        sendAlert("No skulls/dirt loaded!")
+        return false
+    end
+    Version.log("Loaded " .. skullCount .. " skulls/dirt")
+    
+    -- Turn back to face forward
+    turtle.turnRight()
+    turtle.turnRight()
+    
+    Version.log("Resources loaded successfully")
+    return true
+end
+
 -- Find the wither boss farm computer
 local function findFarmComputer()
     Version.log("Looking up wither_boss_farm...")
@@ -386,6 +438,15 @@ local function mainLoop()
     -- Ensure we have enough fuel for the cycle
     Version.log("Checking fuel...")
     Turtle.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendTelemetry, sendAlert)
+    
+    -- Load resources from chests
+    if not loadResources() then
+        sendAlert("Failed to load resources!")
+        return
+    end
+    
+    -- Check pause state after loading
+    Turtle.checkPauseState(sharedState, sendTelemetry)
     
     -- Find the farm computer
     if not findFarmComputer() then
