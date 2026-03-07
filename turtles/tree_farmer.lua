@@ -3,6 +3,7 @@
 
 local Network = require("network")
 local TurtleLib = require("turtle")
+local Worker = require("worker")
 local Updater = require("updater")
 
 -- Try to load version, but don't fail if it doesn't exist
@@ -21,6 +22,7 @@ local function log(message)
 end
 
 -- Configuration
+local CYCLE_FUEL_REQUIREMENT = 150 -- Fuel needed for one complete cycle
 local FUEL_SLOT = 16
 local SAPLING_SLOTS_START = 1
 local SAPLING_SLOTS_END = 4
@@ -144,90 +146,18 @@ local function checkPauseState()
     TurtleLib.checkPauseState(sharedState, sendTelemetry)
 end
 
--- Refuel from the last slot (only if it's actually fuel)
-local function refuel()
-    turtle.select(FUEL_SLOT)
-    local item = turtle.getItemDetail(FUEL_SLOT)
-    if item and turtle.getItemCount(FUEL_SLOT) > 0 then
-        -- Only refuel if it's not a sapling or bonemeal
-        if not item.name:find("sapling") and not item.name:find("bone") then
-            turtle.refuel(1)
-        end
-    end
-end
-
 -- Load fuel from chest on the right
 local function loadFuel()
-    -- First, ensure sapling and bonemeal slots are empty by returning items
-    turtle.turnLeft()
-    for slot = SAPLING_SLOTS_START, BONEMEAL_SLOTS_END do
-        turtle.select(slot)
-        if turtle.getItemCount(slot) > 0 then
-            local item = turtle.getItemDetail(slot)
-            if item and item.name:find("sapling") then
-                turtle.drop()
-            end
-        end
-    end
-    turtle.turnRight()
-    
-    -- Return bonemeal to back chest
-    turtle.turnRight()
-    turtle.turnRight()
-    for slot = BONEMEAL_SLOTS_START, BONEMEAL_SLOTS_END do
-        turtle.select(slot)
-        if turtle.getItemCount(slot) > 0 then
-            local item = turtle.getItemDetail(slot)
-            if item and item.name:find("bone") then
-                turtle.drop()
-            end
-        end
-    end
-    turtle.turnRight()
-    turtle.turnRight()
-    
-    -- Now load fuel safely
-    local success, fuelPercent = TurtleLib.loadFuelFromChest("right", 80)
+    -- Use TurtleLib with cleanup for saplings (left) and bonemeal (back)
+    local cleanupDirections = {
+        ["sapling"] = "left",
+        ["bone"] = "back"
+    }
+    local success, fuelPercent = TurtleLib.loadFuelFromChestWithCleanup("right", cleanupDirections, 80)
     
     if not success or fuelPercent < 80 then
         sendAlert("Could not reach 80% fuel (currently " .. fuelPercent .. "%)")
         status.lastError = "Low fuel: " .. fuelPercent .. "%"
-    end
-end
-
--- Check fuel and enter fuel lock if critically low
-local function checkFuelLock()
-    local fuel = TurtleLib.getFuelStatus()
-    
-    if fuel.percent <= 5 then
-        log("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
-        sendAlert("FUEL LOCK: Critical fuel level, waiting for refuel")
-        status.lastError = "FUEL LOCK: Critical fuel"
-        sendTelemetry()
-        
-        while fuel.percent <= 5 do
-            log("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
-            
-            -- Try to load fuel from chest
-            turtle.turnRight()
-            turtle.select(FUEL_SLOT)
-            turtle.suck()
-            turtle.turnLeft()
-            
-            -- Try to refuel if we got something
-            if turtle.getItemCount(FUEL_SLOT) > 0 then
-                turtle.refuel()
-            end
-            
-            fuel = TurtleLib.getFuelStatus()
-            sendTelemetry()
-            sleep(5)
-        end
-        
-        log("Fuel lock released: " .. fuel.percent .. "%")
-        sendAlert("Fuel lock released: " .. fuel.percent .. "%")
-        status.lastError = nil
-        sendTelemetry()
     end
 end
 
@@ -581,6 +511,7 @@ local function harvestTree()
     state.phase = "idle"
     state.treeHeight = 0
     status.lastError = nil
+    sendTelemetry()  -- Send telemetry immediately when returning to idle
 end
 
 -- Deposit items into chests
@@ -653,7 +584,8 @@ local function mainLoop()
         
         log("Starting fresh cycle...")
         
-        checkFuelLock()
+        -- Proactive fuel check BEFORE starting cycle
+        TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
         checkPauseState() -- Check after fuel lock
         
         -- Load resources
@@ -752,7 +684,7 @@ local function main()
     installStartup()
     
     -- Wait for connection to central and get initial mode
-    TurtleLib.waitForCentralConnection(sharedState, TURTLE_NAME)
+    Worker.waitForCentralConnection(sharedState, TURTLE_NAME)
     
     -- Send initial telemetry
     sendTelemetry()
@@ -796,7 +728,7 @@ local function main()
     log("Mode: " .. sharedState.operatingMode)
     
     -- Create command listener
-    local commandListener = TurtleLib.createCommandListener(sharedState, {
+    local commandListener = Worker.createCommandListener(sharedState, {
         sendAlert = sendAlert,
         sendTelemetry = sendTelemetry
     })
