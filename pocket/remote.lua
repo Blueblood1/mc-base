@@ -67,6 +67,9 @@ local function drawControlTab()
     screen:print("Paused: " .. stats.pausedWorkers)
     
     -- Show connection status
+    screen:setTextColor(colors.gray)
+    screen:print("Central: " .. (centralId and tostring(centralId) or "NONE"))
+    
     if not centralId then
         screen:setTextColor(colors.red)
         screen:print("No central connection!")
@@ -128,7 +131,15 @@ local function drawControlTab()
     local btnY = h - 2
     
     local refreshBtn = UI.Button:new(1, btnY, 8, 2, "REFRESH", function()
-        requestTelemetry()
+        local success = requestTelemetry()
+        if not success then
+            -- Show error on screen briefly
+            screen:setCursorPos(1, btnY - 1)
+            screen:setTextColor(colors.red)
+            screen:write("No central!")
+            sleep(1)
+            updateDisplay()
+        end
     end, colors.blue, colors.white)
     screen:addButton(refreshBtn)
     
@@ -280,49 +291,51 @@ local function main()
     -- Initial display
     updateDisplay()
     
-    -- Main loop
-    local lastTelemetryRequest = os.epoch("utc")
-    local checkTimer = os.startTimer(0.5)
-    
-    while true do
-        local event, param1, param2, param3 = os.pullEvent()
-        
-        if event == "timer" and param1 == checkTimer then
-            -- Check for network messages
-            while true do
-                local senderId, msgType, data = Network.receive(0)
-                if not senderId then break end
-                handleMessage(senderId, msgType, data)
-            end
-            
-            local now = os.epoch("utc")
-            
-            -- Periodic telemetry request
-            if (now - lastTelemetryRequest) > (TELEMETRY_INTERVAL * 1000) then
-                requestTelemetry()
-                lastTelemetryRequest = now
-            end
-            
-            checkTimer = os.startTimer(0.5)
-            
-        elseif event == "rednet_message" then
+    -- Main loop with parallel message handling
+    local function messageListener()
+        while true do
+            local event, param1, param2, param3 = os.pullEvent("rednet_message")
             local senderId, msgType, data = Network.receive(0)
             if senderId then
                 handleMessage(senderId, msgType, data)
             end
+        end
+    end
+    
+    local function uiLoop()
+        local lastTelemetryRequest = os.epoch("utc")
+        local checkTimer = os.startTimer(0.5)
+        
+        while true do
+            local event, param1, param2, param3 = os.pullEvent()
             
-        elseif event == "mouse_click" then
-            local x, y = param2, param3
-            
-            -- Check tab bar first
-            if tabBar:handleClick(x, y) then
-                -- Tab changed, display already updated
-            else
-                -- Check buttons
-                screen:handleClick(x, y)
+            if event == "timer" and param1 == checkTimer then
+                local now = os.epoch("utc")
+                
+                -- Periodic telemetry request
+                if (now - lastTelemetryRequest) > (TELEMETRY_INTERVAL * 1000) then
+                    requestTelemetry()
+                    lastTelemetryRequest = now
+                end
+                
+                checkTimer = os.startTimer(0.5)
+                
+            elseif event == "mouse_click" then
+                local x, y = param2, param3
+                
+                -- Check tab bar first
+                if tabBar:handleClick(x, y) then
+                    -- Tab changed, display already updated
+                else
+                    -- Check buttons
+                    screen:handleClick(x, y)
+                end
             end
         end
     end
+    
+    -- Run both loops in parallel
+    parallel.waitForAll(messageListener, uiLoop)
 end
 
 -- Run
