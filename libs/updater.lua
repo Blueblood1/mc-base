@@ -54,6 +54,9 @@ Updater.MANIFEST = {
     -- Central Computer
     ["central_computer.lua"] = "computers/central_computer.lua",
     
+    -- Computers
+    ["wither_mob_farm.lua"] = "computers/wither_mob_farm.lua",
+    
     -- Turtles
     ["pig_feeder.lua"] = "turtles/pig_feeder.lua",
     ["cow_feeder.lua"] = "turtles/cow_feeder.lua",

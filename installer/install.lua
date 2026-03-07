@@ -132,6 +132,29 @@ local function install(args)
         print("")
     else
         print("Detected: Computer")
+        
+        -- If no type specified, ask user
+        if not turtleType then
+            print("")
+            print("Available computer types:")
+            print("  1. central_computer - Main control system")
+            print("  2. wither_mob_farm - Wither mob farm controller")
+            print("")
+            write("Select computer type (1-2): ")
+            local choice = read()
+            
+            if choice == "1" then
+                turtleType = "central_computer"
+            elseif choice == "2" then
+                turtleType = "wither_mob_farm"
+            else
+                print("Invalid choice, defaulting to central_computer")
+                turtleType = "central_computer"
+            end
+        end
+        
+        print("")
+        print("Installing: " .. turtleType)
         print("")
     end
     
@@ -222,12 +245,12 @@ local function install(args)
     else
         -- Install computer-specific files
         print("")
-        print("Installing central computer...")
-        if download("computers/central_computer.lua", "central_computer.lua") then
+        print("Installing " .. turtleType .. "...")
+        if download("computers/" .. turtleType .. ".lua", turtleType .. ".lua") then
             success = success + 1
         else
             failed = failed + 1
-            print("FAILED: central_computer.lua")
+            print("FAILED: " .. turtleType .. ".lua")
         end
         
         -- Create startup file
@@ -235,12 +258,12 @@ local function install(args)
             print("")
             print("Creating startup.lua...")
             local startup = fs.open("startup.lua", "w")
-            startup.write('-- Auto-start central computer on boot\n')
+            startup.write('-- Auto-start ' .. turtleType .. ' on boot\n')
             startup.write('print("Checking for updates...")\n')
             startup.write('local Updater = require("updater")\n')
             startup.write('Updater.updateLocal()\n')
-            startup.write('print("Starting central computer...")\n')
-            startup.write('shell.run("central_computer")\n')
+            startup.write('print("Starting ' .. turtleType .. '...")\n')
+            startup.write('shell.run("' .. turtleType .. '")\n')
             startup.close()
             print("✓ startup.lua")
         else
@@ -258,7 +281,7 @@ local function install(args)
     if isTurtle then
         print("Run: " .. turtleType)
     else
-        print("Run: central_computer")
+        print("Run: " .. turtleType)
     end
 end
 
