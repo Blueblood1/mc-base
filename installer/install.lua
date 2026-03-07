@@ -6,26 +6,15 @@
 local GITHUB_USER = "Blueblood1"
 local GITHUB_REPO = "mc-base"
 local GITHUB_BRANCH = "master"
-local LOCAL_SERVER = "http://localhost:8080"
+local LOCAL_SERVER = "http://127.0.0.1:8080"
 
 -- Build URL with fallback logic
-local function buildUrl(path)
-    -- Try local server first
-    local localUrl = LOCAL_SERVER .. "/" .. path
-    
-    print("Checking local server...")
-    
-    -- Use http.checkURL to test if local server is reachable
-    local success, err = http.checkURL(localUrl)
-    
-    if success then
-        print("Local server available, using: " .. localUrl)
-        return localUrl
-    else
-        print("Local server not available (" .. tostring(err) .. "), using GitHub")
+local function buildUrl(path, useLocal)
+    if useLocal then
+        return LOCAL_SERVER .. "/" .. path
     end
     
-    -- Fallback to GitHub with cache buster
+    -- GitHub with cache buster
     local cacheBuster = "?cb=" .. os.epoch("utc")
     return string.format(
         "https://raw.githubusercontent.com/%s/%s/%s/%s%s",
@@ -37,30 +26,66 @@ local function buildUrl(path)
     )
 end
 
--- Download a file from GitHub
+-- Download a file with local fallback
 local function download(githubPath, localFilename)
     if not http then
         print("Error: HTTP API is not enabled!")
         return false
     end
     
-    local url = buildUrl(githubPath)
     print("Downloading " .. localFilename .. "...")
     
-    local response = http.get(url)
+    -- Try local server first
+    local localUrl = buildUrl(githubPath, true)
+    local response = http.get(localUrl)
+    
+    if response then
+        local responseCode = response.getResponseCode()
+        if responseCode == 200 then
+            local content = response.readAll()
+            response.close()
+            
+            if content and content ~= "" then
+                local file = fs.open(localFilename, "w")
+                file.write(content)
+                file.close()
+                print("✓ " .. localFilename .. " (local)")
+                return true
+            end
+        else
+            response.close()
+        end
+    end
+    
+    -- Fallback to GitHub
+    local githubUrl = buildUrl(githubPath, false)
+    response = http.get(githubUrl)
+    
     if not response then
         print("Failed to download " .. localFilename)
+        return false
+    end
+    
+    local responseCode = response.getResponseCode()
+    if responseCode ~= 200 then
+        print("HTTP Error " .. responseCode .. " for " .. localFilename)
+        response.close()
         return false
     end
     
     local content = response.readAll()
     response.close()
     
+    if not content or content == "" then
+        print("Empty response for " .. localFilename)
+        return false
+    end
+    
     local file = fs.open(localFilename, "w")
     file.write(content)
     file.close()
     
-    print("✓ " .. localFilename)
+    print("✓ " .. localFilename .. " (GitHub)")
     return true
 end
 

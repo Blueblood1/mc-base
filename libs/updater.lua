@@ -4,7 +4,7 @@
 local Updater = {}
 
 -- Server configuration
-Updater.LOCAL_SERVER = "http://localhost:8080"
+Updater.LOCAL_SERVER = "http://127.0.0.1:8080"
 Updater.GITHUB_USER = "Blueblood1"
 Updater.GITHUB_REPO = "mc-base"
 Updater.GITHUB_BRANCH = "master"
