@@ -251,6 +251,18 @@ local function handleMessage(senderId, msgType, data)
     if msgType == Network.MSG_TYPES.TELEMETRY then
         processTelemetry(senderId, data)
         updateDisplay()
+    elseif msgType == Network.MSG_TYPES.COMMAND then
+        -- Handle request_mode from turtles
+        if data.command == "request_mode" then
+            local mode = State.getTurtleMode(centralState, senderId)
+            Network.send(senderId, Network.MSG_TYPES.COMMAND, {
+                command = "set_mode",
+                mode = mode
+            })
+            
+            local turtleName = data.name or ("Turtle " .. senderId)
+            table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. " requested mode: " .. mode)
+        end
     elseif msgType == Network.MSG_TYPES.HEARTBEAT then
         if turtles[senderId] then
             turtles[senderId].lastUpdate = os.epoch("utc")
@@ -264,6 +276,13 @@ local function handleMessage(senderId, msgType, data)
                 lastUpdate = os.epoch("utc")
             }
             stats.totalTurtles = stats.totalTurtles + 1
+            
+            -- Send initial mode to new turtle
+            local mode = State.getTurtleMode(centralState, senderId)
+            Network.send(senderId, Network.MSG_TYPES.COMMAND, {
+                command = "set_mode",
+                mode = mode
+            })
         end
         
         if data.name then

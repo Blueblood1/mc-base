@@ -25,7 +25,102 @@ local TURTLE_NAME = "Tree Farmer"
 local centralId = nil
 
 -- Operating mode
-local operatingMode = "running" -- "running" or "paused"
+local operatingMode = nil -- nil = not connected, "running" or "paused"
+local stopRequested = false
+local centralConnected = false
+
+-- Wait for initial connection and mode from central
+local function waitForCentralConnection()
+    print("Waiting for connection to central computer...")
+    print("Requesting initial mode...")
+    
+    while not centralConnected do
+        -- Try to find central
+        if not centralId then
+            centralId = Network.lookup("central")
+        end
+        
+        -- Request our mode
+        if centralId then
+            Network.send(centralId, Network.MSG_TYPES.COMMAND, {
+                command = "request_mode"
+            })
+        else
+            Network.broadcast(Network.MSG_TYPES.COMMAND, {
+                command = "request_mode"
+            })
+        end
+        
+        -- Wait for response
+        local timeout = os.startTimer(3)
+        while true do
+            local event = os.pullEvent()
+            
+            if event == "timer" then
+                print("No response, retrying...")
+                break
+            elseif event == "rednet_message" then
+                local senderId, msgType, data = Network.receive(0)
+                if senderId and msgType == Network.MSG_TYPES.COMMAND then
+                    if data.command == "set_mode" and data.mode then
+                        operatingMode = data.mode
+                        centralId = senderId
+                        centralConnected = true
+                        print("Connected to central! Mode: " .. operatingMode)
+                        os.cancelTimer(timeout)
+                        return
+                    end
+                end
+            end
+        end
+        
+        sleep(2)
+    end
+end
+
+-- Command listener for parallel execution
+local function commandListener()
+    while not stopRequested do
+        local senderId, msgType, data = Network.receive(1)
+        if senderId and msgType == Network.MSG_TYPES.COMMAND then
+            if data.command == "report_status" then
+                sendTelemetry()
+            elseif data.command == "set_mode" then
+                local oldMode = operatingMode
+                operatingMode = data.mode or "running"
+                centralId = senderId
+                centralConnected = true
+                if oldMode ~= operatingMode then
+                    sendAlert("Mode changed: " .. tostring(oldMode) .. " -> " .. operatingMode)
+                end
+                -- Send acknowledgment
+                Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
+                    ack = true,
+                    command = "set_mode",
+                    mode = operatingMode
+                })
+            elseif data.command == "stop" then
+                sendAlert("Received stop command")
+                stopRequested = true
+            elseif data.command == "update" then
+                sendAlert("Received update command, updating...")
+                local results = Updater.updateLocal()
+                local successCount = 0
+                local failCount = 0
+                for filename, result in pairs(results) do
+                    if result.success then
+                        successCount = successCount + 1
+                    else
+                        failCount = failCount + 1
+                    end
+                end
+                sendAlert("Update complete: " .. successCount .. " success, " .. failCount .. " failed")
+                sleep(2)
+                os.reboot()
+            end
+        end
+    end
+end
 
 -- State tracking
 local state = {
@@ -152,6 +247,18 @@ local function checkCommands()
             sleep(2)
             os.reboot()
         end
+    end
+end
+
+-- Check if paused and wait until resumed
+local function checkPauseState()
+    checkCommands()
+    
+    while operatingMode == "paused" do
+        print("Paused - waiting for resume...")
+        sendTelemetry()
+        sleep(2)
+        checkCommands()
     end
 end
 
@@ -666,79 +773,82 @@ end
 -- Main program loop
 local function mainLoop()
     while true do
-        -- Check if we're paused
-        if operatingMode == "paused" then
-            print("Paused - waiting for resume command...")
+        -- Check if we're paused at the start of each cycle
+        checkPauseState()
+        
+        print("Starting fresh cycle...")
+        
+        checkFuelLock()
+        checkPauseState() -- Check after fuel lock
+        
+        -- Load resources
+        print("Loading fuel...")
+        loadFuel()
+        checkPauseState() -- Check after loading fuel
+        
+        print("Loading saplings...")
+        loadSaplings()
+        checkPauseState() -- Check after loading saplings
+        
+        print("Loading bonemeal...")
+        loadBonemeal()
+        checkPauseState() -- Check after loading bonemeal
+        
+        -- Check if we have required resources
+        if not hasSaplings() then
+            print("No saplings available, waiting...")
+            sendAlert("No saplings available, waiting for resupply")
+            status.lastError = "No saplings available"
             sendTelemetry()
-            checkCommands()
-            sleep(2)
-        else
-            print("Starting fresh cycle...")
             
-            checkFuelLock()
-            
-            -- Load resources
-            print("Loading fuel...")
-            loadFuel()
-            
-            print("Loading saplings...")
-            loadSaplings()
-            
-            print("Loading bonemeal...")
-            loadBonemeal()
-            
-            -- Check if we have required resources
-            if not hasSaplings() then
-                print("No saplings available, waiting...")
-                sendAlert("No saplings available, waiting for resupply")
-                status.lastError = "No saplings available"
-                sendTelemetry()
-                
-                for i = 1, 60 do
-                    checkCommands()
-                    sleep(1)
-                end
-            elseif not hasBonemeal() then
-                print("No bonemeal available, waiting...")
-                sendAlert("No bonemeal available, waiting for resupply")
-                status.lastError = "No bonemeal available"
-                sendTelemetry()
-                
-                for i = 1, 60 do
-                    checkCommands()
-                    sleep(1)
-                end
-            else
-                status.lastError = nil
-                sendTelemetry()
-                
-                -- Execute tree farming cycle
-                print("Planting 2x2 saplings...")
-                placeSaplings()
-                
-                print("Growing tree...")
-                local grown = growTree()
-                
-                if grown then
-                    print("Harvesting tree...")
-                    harvestTree()
-                    
-                    print("Depositing items...")
-                    depositItems()
-                    
-                    print("Tree farming cycle complete!")
-                    sendTelemetry()
-                else
-                    -- Growth failed, clean up saplings and try again
-                    print("Growth failed, cleaning up...")
-                    for i = 1, 4 do
-                        turtle.digDown()
-                    end
-                    turtle.back()
-                end
-                
-                sleep(2)
+            for i = 1, 60 do
+                checkCommands()
+                sleep(1)
             end
+        elseif not hasBonemeal() then
+            print("No bonemeal available, waiting...")
+            sendAlert("No bonemeal available, waiting for resupply")
+            status.lastError = "No bonemeal available"
+            sendTelemetry()
+            
+            for i = 1, 60 do
+                checkCommands()
+                sleep(1)
+            end
+        else
+            status.lastError = nil
+            sendTelemetry()
+            
+            -- Execute tree farming cycle
+            print("Planting 2x2 saplings...")
+            placeSaplings()
+            checkPauseState() -- Check after planting
+            
+            print("Growing tree...")
+            local grown = growTree()
+            checkPauseState() -- Check after growing
+            
+            if grown then
+                print("Harvesting tree...")
+                harvestTree()
+                checkPauseState() -- Check after harvesting
+                
+                print("Depositing items...")
+                depositItems()
+                checkPauseState() -- Check after depositing
+                
+                print("Tree farming cycle complete!")
+                sendTelemetry()
+            else
+                -- Growth failed, clean up saplings and try again
+                print("Growth failed, cleaning up...")
+                for i = 1, 4 do
+                    turtle.digDown()
+                end
+                turtle.back()
+            end
+            
+            sleep(2)
         end
     end
 end
@@ -755,7 +865,10 @@ local function main()
     
     -- Initialize network
     if not Network.init() then
-        print("Warning: No modem found! Running in offline mode.")
+        print("ERROR: No modem found!")
+        print("Cannot connect to central computer.")
+        print("Please attach a wireless modem and reboot.")
+        return
     else
         print("Network initialized")
         if not os.getComputerLabel() then
@@ -764,6 +877,9 @@ local function main()
     end
     
     installStartup()
+    
+    -- Wait for connection to central and get initial mode
+    waitForCentralConnection()
     
     -- Check if we're resuming from a saved state
     local resuming = loadState()
@@ -793,6 +909,7 @@ local function main()
     end
     
     print("Entering main loop...")
+    print("Mode: " .. operatingMode)
     
     -- Wrap in error handler
     while true do
