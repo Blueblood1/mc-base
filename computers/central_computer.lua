@@ -120,7 +120,7 @@ local function updateDisplay()
         -- Status indicator
         screen:setCursorPos(25, currentY)
         screen:setTextColor(statusColor)
-        screen:write(mode == "paused" and "PAUSED" or turtle.status)
+        screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
         
         -- Start/Stop button
         local buttonColor = mode == "paused" and colors.green or colors.red
