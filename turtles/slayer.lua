@@ -10,6 +10,7 @@ local Version = require("version")
 local ATTACK_DELAY = 0.5 -- Delay between attacks in seconds
 local TELEMETRY_INTERVAL = 10
 local TURTLE_NAME = "Slayer"
+local MIN_FREE_SLOTS = 2 -- Dump inventory when free slots drop below this
 
 -- Central computer ID (will be discovered)
 local centralId = nil
@@ -133,12 +134,40 @@ local function waitForCentralConnection()
     end
 end
 
+-- Dump inventory into chest below
+local function dumpInventory()
+    local dumped = false
+    for slot = 1, 16 do
+        turtle.select(slot)
+        if turtle.getItemCount(slot) > 0 then
+            turtle.dropDown()
+            dumped = true
+        end
+    end
+    return dumped
+end
+
+-- Check if inventory is getting full
+local function checkInventory()
+    local inventory = TurtleLib.getInventoryStatus()
+    
+    if inventory.emptySlots <= MIN_FREE_SLOTS then
+        Version.log("Inventory full, dumping items...")
+        if dumpInventory() then
+            Version.log("Inventory dumped")
+        end
+    end
+end
+
 -- Main slaying loop
 local function mainLoop()
     local lastTelemetry = os.epoch("utc")
     
     while true do
         TurtleLib.checkPauseState(sharedState, sendTelemetry)
+        
+        -- Check inventory periodically
+        checkInventory()
         
         -- Attack
         if turtle.attack() then
