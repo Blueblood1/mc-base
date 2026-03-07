@@ -54,6 +54,8 @@ while true do
                     print("Mode for " .. senderId .. ": " .. mode)
                     
                     print("Sending response...")
+                    print("Target ID: " .. senderId)
+                    print("Protocol: " .. Network.PROTOCOL)
                     local startTime = os.epoch("utc")
                     
                     Network.send(senderId, Network.MSG_TYPES.COMMAND, {
@@ -63,6 +65,7 @@ while true do
                     
                     local endTime = os.epoch("utc")
                     print("Response sent! (took " .. (endTime - startTime) .. "ms)")
+                    print("Sent to computer ID: " .. senderId)
                     
                 elseif data.command == "report_status" then
                     print("Processing report_status...")

@@ -45,6 +45,25 @@ local stats = {
     pausedTurtles = 0,
     alerts = {}
 }
+local debugMonitor = nil
+
+-- Debug log function
+local function debugLog(message)
+    if debugMonitor then
+        local w, h = debugMonitor.getSize()
+        local x, y = debugMonitor.getCursorPos()
+        
+        -- Scroll if at bottom
+        if y >= h then
+            debugMonitor.scroll(1)
+            debugMonitor.setCursorPos(1, h)
+        end
+        
+        local time = os.date("%H:%M:%S")
+        debugMonitor.write("[" .. time .. "] " .. message)
+        debugMonitor.setCursorPos(1, y + 1)
+    end
+end
 
 -- Send command to set turtle mode
 local function setTurtleMode(turtleId, mode)
@@ -249,18 +268,24 @@ end
 
 -- Handle incoming messages
 local function handleMessage(senderId, msgType, data)
+    debugLog("MSG from " .. senderId .. " type:" .. msgType)
+    
     if msgType == Network.MSG_TYPES.TELEMETRY then
         processTelemetry(senderId, data)
         -- Don't update display here - let periodic refresh handle it
     elseif msgType == Network.MSG_TYPES.COMMAND then
         -- Handle request_mode from turtles
         if data.command == "request_mode" then
+            debugLog("request_mode from " .. senderId)
+            
             local mode = State.getTurtleMode(centralState, senderId)
             
+            debugLog("Sending mode:" .. mode .. " to " .. senderId)
             Network.send(senderId, Network.MSG_TYPES.COMMAND, {
                 command = "set_mode",
                 mode = mode
             })
+            debugLog("Response sent")
             
             local turtleName = data.name or ("Turtle " .. senderId)
             table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. " requested mode: " .. mode)
@@ -286,7 +311,7 @@ local function handleMessage(senderId, msgType, data)
             
         -- Handle report_status from pocket computer
         elseif data.command == "report_status" then
-            Version.log("Received report_status from " .. senderId)
+            debugLog("report_status from " .. senderId)
             
             -- Send worker list to requester
             local workerData = {}
@@ -300,11 +325,13 @@ local function handleMessage(senderId, msgType, data)
                 count = count + 1
             end
             
-            Version.log("Sending " .. count .. " workers to " .. senderId)
+            debugLog("Sending " .. count .. " workers to " .. senderId)
             
             Network.send(senderId, Network.MSG_TYPES.TELEMETRY, {
                 workers = workerData
             })
+            
+            debugLog("Response sent")
         end
     elseif msgType == Network.MSG_TYPES.HEARTBEAT then
         if turtles[senderId] then
@@ -401,11 +428,27 @@ local function main()
     
     -- Check for monitor
     local monitorSide = nil
+    local debugMonitorSide = nil
+    local debugMonitor = nil
+    
     for _, side in ipairs({"top", "bottom", "left", "right", "front", "back"}) do
         if peripheral.getType(side) == "monitor" then
-            monitorSide = side
-            Version.log("Monitor found on " .. side)
-            break
+            if not monitorSide then
+                monitorSide = side
+                Version.log("Main monitor found on " .. side)
+            else
+                debugMonitorSide = side
+                Version.log("Debug monitor found on " .. side)
+                debugMonitor = peripheral.wrap(side)
+                debugMonitor.setTextScale(0.5)
+                debugMonitor.clear()
+                debugMonitor.setCursorPos(1, 1)
+                debugMonitor.setTextColor(colors.yellow)
+                debugMonitor.write("=== DEBUG LOG ===")
+                debugMonitor.setTextColor(colors.white)
+                debugMonitor.setCursorPos(1, 2)
+                break
+            end
         end
     end
     
