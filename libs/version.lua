@@ -5,33 +5,21 @@ local Version = {}
 
 Version.BUILD_NUMBER = nil
 
--- Download and get build number from GitHub
-function Version.fetch()
-    if not http then
-        return nil, "HTTP API not enabled"
+-- Read version from local VERSION file
+function Version.get()
+    if Version.BUILD_NUMBER then
+        return Version.BUILD_NUMBER
     end
     
-    -- Add cache buster
-    local cacheBuster = "?cb=" .. os.epoch("utc")
-    local url = "https://raw.githubusercontent.com/Blueblood1/mc-base/master/VERSION" .. cacheBuster
-    local response = http.get(url)
-    
-    if not response then
-        return nil, "Failed to fetch version"
+    if not fs.exists("VERSION") then
+        return "unknown"
     end
     
-    local content = response.readAll()
-    response.close()
+    local file = fs.open("VERSION", "r")
+    local content = file.readAll()
+    file.close()
     
     Version.BUILD_NUMBER = tonumber(content)
-    return Version.BUILD_NUMBER
-end
-
--- Get cached build number or fetch if not available
-function Version.get()
-    if not Version.BUILD_NUMBER then
-        Version.fetch()
-    end
     return Version.BUILD_NUMBER or "unknown"
 end
 

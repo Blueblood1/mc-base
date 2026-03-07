@@ -97,6 +97,23 @@ function Updater.updateFile(localFilename)
     return Updater.download(githubPath, localFilename)
 end
 
+-- Check if update is needed by comparing VERSION file
+function Updater.checkVersion()
+    -- Download VERSION file
+    local success, message = Updater.download("VERSION", "VERSION")
+    
+    if not success and message ~= "File unchanged" then
+        return false, "Failed to check version: " .. message
+    end
+    
+    -- If VERSION file changed, update is needed
+    if success then
+        return true, "New version available"
+    end
+    
+    return false, "Already up to date"
+end
+
 -- Update all configured files
 function Updater.updateAll()
     local results = {}
@@ -116,16 +133,26 @@ end
 
 -- Update only the files that exist locally (for auto-update)
 function Updater.updateLocal()
+    -- First check if VERSION changed
+    local needsUpdate, message = Updater.checkVersion()
+    
+    if not needsUpdate then
+        print(message)
+        return {}
+    end
+    
+    print(message .. ", updating files...")
+    
     local results = {}
     
     for localFilename, githubPath in pairs(Updater.MANIFEST) do
-        if fs.exists(localFilename) then
-            local success, message = Updater.download(githubPath, localFilename)
-            results[localFilename] = {success = success, message = message}
+        if fs.exists(localFilename) and localFilename ~= "VERSION" then
+            local success, msg = Updater.download(githubPath, localFilename)
+            results[localFilename] = {success = success, message = msg}
             if success then
                 print("✓ " .. localFilename)
-            elseif message ~= "File unchanged" then
-                print("✗ " .. localFilename .. ": " .. message)
+            elseif msg ~= "File unchanged" then
+                print("✗ " .. localFilename .. ": " .. msg)
             end
         end
     end
