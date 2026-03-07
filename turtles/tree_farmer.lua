@@ -93,6 +93,10 @@ local function waitForCentralConnection()
     end
 end
 
+-- Forward declarations
+local sendAlert
+local sendTelemetry
+
 -- Command listener for parallel execution
 local function commandListener()
     while not stopRequested do
@@ -179,7 +183,7 @@ local function clearState()
 end
 
 -- Send telemetry to central computer
-local function sendTelemetry()
+sendTelemetry = function()
     if not centralId then
         centralId = Network.lookup("central")
     end
@@ -219,7 +223,7 @@ local function sendTelemetry()
 end
 
 -- Send alert to central computer
-local function sendAlert(message)
+sendAlert = function(message)
     status.lastError = message
     if centralId then
         Network.send(centralId, Network.MSG_TYPES.ALERT, {
