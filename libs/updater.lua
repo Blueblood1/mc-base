@@ -162,17 +162,54 @@ end
 
 -- Update only the files that exist locally (for auto-update)
 function Updater.updateLocal()
+    -- Get current version before update
+    local currentVersion = "unknown"
+    if fs.exists("VERSION") then
+        local file = fs.open("VERSION", "r")
+        local content = file.readAll()
+        file.close()
+        content = content:match("^%s*(.-)%s*$")
+        currentVersion = tonumber(content) or "unknown"
+    end
+    
     -- First check if VERSION changed
     local needsUpdate, message = Updater.checkVersion()
     
     if not needsUpdate then
-        print(message)
+        term.clear()
+        term.setCursorPos(1, 1)
+        print("=================================")
+        print("UPDATE CHECK")
+        print("=================================")
+        print("Current version: " .. tostring(currentVersion))
+        print("Status: " .. message)
+        print("=================================")
+        sleep(3)
         return {}
     end
     
-    print(message .. ", updating files...")
+    -- Get new version
+    local newVersion = "unknown"
+    if fs.exists("VERSION") then
+        local file = fs.open("VERSION", "r")
+        local content = file.readAll()
+        file.close()
+        content = content:match("^%s*(.-)%s*$")
+        newVersion = tonumber(content) or "unknown"
+    end
+    
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("=================================")
+    print("UPDATING")
+    print("=================================")
+    print("From version: " .. tostring(currentVersion))
+    print("To version:   " .. tostring(newVersion))
+    print("=================================")
+    print("")
     
     local results = {}
+    local updated = 0
     
     for localFilename, githubPath in pairs(Updater.MANIFEST) do
         if fs.exists(localFilename) and localFilename ~= "VERSION" then
@@ -180,11 +217,21 @@ function Updater.updateLocal()
             results[localFilename] = {success = success, message = msg}
             if success then
                 print("✓ " .. localFilename)
+                updated = updated + 1
             elseif msg ~= "File unchanged" then
                 print("✗ " .. localFilename .. ": " .. msg)
             end
         end
     end
+    
+    print("")
+    print("=================================")
+    print("UPDATE COMPLETE")
+    print("=================================")
+    print("Updated " .. updated .. " files")
+    print("New version: " .. tostring(newVersion))
+    print("=================================")
+    sleep(3)
     
     return results
 end
