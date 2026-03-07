@@ -905,6 +905,11 @@ local function main()
     -- Send initial telemetry
     sendTelemetry()
     
+    -- Check if we should be paused before starting work
+    if operatingMode == "paused" then
+        log("Starting in paused mode")
+    end
+    
     -- Check if we're resuming from a saved state
     local resuming = loadState()
     
@@ -912,6 +917,9 @@ local function main()
         log("Resuming from saved state...")
         log("Phase: " .. state.phase)
         sendTelemetry()
+        
+        -- Check if paused before resuming work
+        checkPauseState()
         
         -- Complete the interrupted cycle based on phase
         if state.phase == "harvesting" then
