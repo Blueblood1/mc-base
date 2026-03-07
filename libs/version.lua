@@ -11,7 +11,9 @@ function Version.fetch()
         return nil, "HTTP API not enabled"
     end
     
-    local url = "https://raw.githubusercontent.com/Blueblood1/mc-base/master/VERSION"
+    -- Add cache buster
+    local cacheBuster = "?cb=" .. os.epoch("utc")
+    local url = "https://raw.githubusercontent.com/Blueblood1/mc-base/master/VERSION" .. cacheBuster
     local response = http.get(url)
     
     if not response then

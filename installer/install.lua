@@ -9,12 +9,15 @@ local GITHUB_BRANCH = "master"
 
 -- Build GitHub raw URL
 local function buildUrl(path)
+    -- Add cache buster to avoid GitHub CDN caching
+    local cacheBuster = "?cb=" .. os.epoch("utc")
     return string.format(
-        "https://raw.githubusercontent.com/%s/%s/%s/%s",
+        "https://raw.githubusercontent.com/%s/%s/%s/%s%s",
         GITHUB_USER,
         GITHUB_REPO,
         GITHUB_BRANCH,
-        path
+        path,
+        cacheBuster
     )
 end
 

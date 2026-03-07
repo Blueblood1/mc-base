@@ -10,12 +10,15 @@ Updater.GITHUB_BRANCH = "master"
 
 -- Build GitHub raw URL
 local function buildGitHubUrl(path)
+    -- Add timestamp as query parameter to bust cache
+    local cacheBuster = "?cb=" .. os.epoch("utc")
     return string.format(
-        "https://raw.githubusercontent.com/%s/%s/%s/%s",
+        "https://raw.githubusercontent.com/%s/%s/%s/%s%s",
         Updater.GITHUB_USER,
         Updater.GITHUB_REPO,
         Updater.GITHUB_BRANCH,
-        path
+        path,
+        cacheBuster
     )
 end
 
