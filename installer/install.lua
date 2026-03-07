@@ -100,6 +100,7 @@ local function install(args)
     
     -- Detect device type
     local isTurtle = turtle ~= nil
+    local isPocket = pocket ~= nil
     
     if isTurtle then
         print("Detected: Turtle")
@@ -129,6 +130,15 @@ local function install(args)
         
         print("")
         print("Installing: " .. turtleType)
+        print("")
+    elseif isPocket then
+        print("Detected: Pocket Computer")
+        
+        -- Pocket computers only have one option
+        turtleType = "remote"
+        
+        print("")
+        print("Installing: Remote Control")
         print("")
     else
         print("Detected: Computer")
@@ -242,6 +252,33 @@ local function install(args)
         else
             print("⚠ startup.lua already exists, skipping")
         end
+    elseif isPocket then
+        -- Install pocket computer files
+        print("")
+        print("Installing remote control...")
+        if download("pocket/remote.lua", "remote.lua") then
+            success = success + 1
+        else
+            failed = failed + 1
+            print("FAILED: remote.lua")
+        end
+        
+        -- Create startup file
+        if not fs.exists("startup.lua") and not fs.exists("startup") then
+            print("")
+            print("Creating startup.lua...")
+            local startup = fs.open("startup.lua", "w")
+            startup.write('-- Auto-start remote control on boot\n')
+            startup.write('print("Checking for updates...")\n')
+            startup.write('local Updater = require("updater")\n')
+            startup.write('Updater.updateLocal()\n')
+            startup.write('print("Starting remote control...")\n')
+            startup.write('shell.run("remote")\n')
+            startup.close()
+            print("✓ startup.lua")
+        else
+            print("⚠ startup.lua already exists, skipping")
+        end
     else
         -- Install computer-specific files
         print("")
@@ -280,6 +317,8 @@ local function install(args)
     
     if isTurtle then
         print("Run: " .. turtleType)
+    elseif isPocket then
+        print("Run: remote")
     else
         print("Run: " .. turtleType)
     end

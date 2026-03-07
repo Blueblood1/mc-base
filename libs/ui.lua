@@ -151,4 +151,75 @@ function UI.drawCenteredText(output, x, y, width, text, textColor, bgColor)
     output.setTextColor(colors.white)
 end
 
+-- Tab Bar class
+UI.TabBar = {}
+UI.TabBar.__index = UI.TabBar
+
+function UI.TabBar:new(x, y, width, tabs)
+    local tabBar = {
+        x = x,
+        y = y,
+        width = width,
+        tabs = tabs or {},
+        activeTab = 1,
+        onTabChange = nil
+    }
+    setmetatable(tabBar, UI.TabBar)
+    return tabBar
+end
+
+function UI.TabBar:addTab(name)
+    table.insert(self.tabs, name)
+end
+
+function UI.TabBar:draw(output)
+    local tabWidth = math.floor(self.width / #self.tabs)
+    
+    for i, tabName in ipairs(self.tabs) do
+        local tabX = self.x + (i - 1) * tabWidth
+        local isActive = (i == self.activeTab)
+        
+        -- Draw tab background
+        output.setBackgroundColor(isActive and colors.gray or colors.black)
+        output.setTextColor(isActive and colors.white or colors.lightGray)
+        output.setCursorPos(tabX, self.y)
+        
+        -- Center text in tab
+        local padding = math.floor((tabWidth - #tabName) / 2)
+        local tabText = string.rep(" ", padding) .. tabName .. string.rep(" ", tabWidth - padding - #tabName)
+        output.write(tabText)
+    end
+    
+    -- Reset colors
+    output.setBackgroundColor(colors.black)
+    output.setTextColor(colors.white)
+end
+
+function UI.TabBar:handleClick(clickX, clickY)
+    if clickY ~= self.y then
+        return false
+    end
+    
+    local tabWidth = math.floor(self.width / #self.tabs)
+    
+    for i = 1, #self.tabs do
+        local tabX = self.x + (i - 1) * tabWidth
+        if clickX >= tabX and clickX < tabX + tabWidth then
+            if self.activeTab ~= i then
+                self.activeTab = i
+                if self.onTabChange then
+                    self.onTabChange(i, self.tabs[i])
+                end
+            end
+            return true
+        end
+    end
+    
+    return false
+end
+
+function UI.TabBar:getActiveTab()
+    return self.activeTab, self.tabs[self.activeTab]
+end
+
 return UI

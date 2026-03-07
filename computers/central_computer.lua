@@ -264,6 +264,47 @@ local function handleMessage(senderId, msgType, data)
             
             local turtleName = data.name or ("Turtle " .. senderId)
             table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. " requested mode: " .. mode)
+            
+        -- Handle toggle_worker from pocket computer
+        elseif data.command == "toggle_worker" and data.workerId then
+            toggleTurtleMode(data.workerId)
+            updateDisplay()
+            
+            -- Send updated worker list back to requester
+            local workerData = {}
+            for id, turtle in pairs(turtles) do
+                workerData[id] = {
+                    name = turtle.name,
+                    status = turtle.status,
+                    mode = State.getTurtleMode(centralState, id)
+                }
+            end
+            
+            Network.send(senderId, Network.MSG_TYPES.TELEMETRY, {
+                workers = workerData
+            })
+            
+        -- Handle report_status from pocket computer
+        elseif data.command == "report_status" then
+            Version.log("Received report_status from " .. senderId)
+            
+            -- Send worker list to requester
+            local workerData = {}
+            local count = 0
+            for id, turtle in pairs(turtles) do
+                workerData[id] = {
+                    name = turtle.name,
+                    status = turtle.status,
+                    mode = State.getTurtleMode(centralState, id)
+                }
+                count = count + 1
+            end
+            
+            Version.log("Sending " .. count .. " workers to " .. senderId)
+            
+            Network.send(senderId, Network.MSG_TYPES.TELEMETRY, {
+                workers = workerData
+            })
         end
     elseif msgType == Network.MSG_TYPES.HEARTBEAT then
         if turtles[senderId] then
