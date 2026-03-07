@@ -110,6 +110,9 @@ local function waitForCentralConnection()
     Version.log("Found central computer: " .. sharedState.centralId)
     sharedState.centralConnected = true
     
+    -- Small delay to let any DNS responses clear
+    sleep(0.1)
+    
     -- Request initial mode
     Network.send(sharedState.centralId, Network.MSG_TYPES.COMMAND, {
         command = "request_mode",
