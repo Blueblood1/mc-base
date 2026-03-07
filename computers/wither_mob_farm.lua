@@ -129,14 +129,26 @@ local function waitForCentralConnection()
             Version.log("Timeout waiting for mode, defaulting to paused")
             break
         elseif event == "rednet_message" then
+            Version.log("Received rednet message from " .. param1)
             local senderId, msgType, data = Network.receive(0)
-            if senderId == sharedState.centralId and msgType == Network.MSG_TYPES.COMMAND then
-                if data.command == "set_mode" then
-                    sharedState.operatingMode = data.mode
-                    Version.log("Initial mode set to: " .. data.mode)
-                    modeReceived = true
-                    os.cancelTimer(timeout)
+            if senderId then
+                Version.log("Message type: " .. tostring(msgType))
+                if data and data.command then
+                    Version.log("Command: " .. data.command)
                 end
+                
+                if senderId == sharedState.centralId and msgType == Network.MSG_TYPES.COMMAND then
+                    if data.command == "set_mode" then
+                        sharedState.operatingMode = data.mode
+                        Version.log("Initial mode set to: " .. data.mode)
+                        modeReceived = true
+                        os.cancelTimer(timeout)
+                    end
+                else
+                    Version.log("Ignoring message (sender=" .. senderId .. ", expected=" .. sharedState.centralId .. ")")
+                end
+            else
+                Version.log("Message not for our protocol")
             end
         end
     end
