@@ -238,48 +238,12 @@ sendAlert = function(message)
     end
 end
 
--- Check for commands from central
-local function checkCommands()
-    local senderId, msgType, data = Network.receive(0.1)
-    if senderId and msgType == Network.MSG_TYPES.COMMAND then
-        log("DEBUG: Received command: " .. tostring(data.command))
-        if data.command == "report_status" then
-            sendTelemetry()
-        elseif data.command == "set_mode" then
-            local oldMode = operatingMode
-            operatingMode = data.mode or "running"
-            log("Mode changed: " .. oldMode .. " -> " .. operatingMode)
-        elseif data.command == "stop" then
-            sendAlert("Received stop command")
-            error("Stopped by central command")
-        elseif data.command == "update" then
-            sendAlert("Received update command, updating...")
-            local results = Updater.updateLocal()
-            local successCount = 0
-            local failCount = 0
-            for filename, result in pairs(results) do
-                if result.success then
-                    successCount = successCount + 1
-                else
-                    failCount = failCount + 1
-                end
-            end
-            sendAlert("Update complete: " .. successCount .. " success, " .. failCount .. " failed")
-            sleep(2)
-            os.reboot()
-        end
-    end
-end
-
 -- Check if paused and wait until resumed
 local function checkPauseState()
-    checkCommands()
-    
     while operatingMode == "paused" do
         log("Paused - waiting for resume...")
         sendTelemetry()
         sleep(2)
-        checkCommands()
     end
 end
 
@@ -360,7 +324,6 @@ local function checkFuelLock()
             
             fuel = TurtleLib.getFuelStatus()
             sendTelemetry()
-            checkCommands()
             sleep(5)
         end
         
@@ -527,8 +490,6 @@ local function growTree()
                 end
             end
             
-            checkCommands()
-            
             if attempts % 20 == 0 then
                 sendTelemetry()
             end
@@ -607,7 +568,6 @@ local function harvestTree()
         turtle.up()
         state.treeHeight = state.treeHeight + 1
         saveState()
-        checkCommands()
         
         if state.treeHeight % 5 == 0 then
             sendTelemetry()
@@ -648,7 +608,6 @@ local function harvestTree()
             end
             turtle.turnLeft()
             
-            checkCommands()
         end
     end
     
@@ -680,7 +639,6 @@ local function harvestTree()
             turtle.up()
             state.treeHeight = state.treeHeight + 1
             saveState()
-            checkCommands()
         else
             -- No more logs above in this column
             break
@@ -707,7 +665,6 @@ local function harvestTree()
             logsThisTree = logsThisTree + 1
         end
         
-        checkCommands()
     end
     
     log("Harvested " .. logsThisTree .. " logs")
@@ -823,7 +780,6 @@ local function mainLoop()
             sendTelemetry()
             
             for i = 1, 60 do
-                checkCommands()
                 sleep(1)
             end
         elseif not hasBonemeal() then
@@ -833,7 +789,6 @@ local function mainLoop()
             sendTelemetry()
             
             for i = 1, 60 do
-                checkCommands()
                 sleep(1)
             end
         else
