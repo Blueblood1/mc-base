@@ -899,7 +899,8 @@ local function main()
     log("Mode: " .. operatingMode)
     
     -- Run main loop and command listener in parallel
-    parallel.waitForAny(
+    -- Use waitForAll so both keep running
+    parallel.waitForAll(
         function()
             while true do
                 local success, err = pcall(mainLoop)
