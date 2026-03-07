@@ -251,7 +251,7 @@ end
 local function handleMessage(senderId, msgType, data)
     if msgType == Network.MSG_TYPES.TELEMETRY then
         processTelemetry(senderId, data)
-        updateDisplay()
+        -- Don't update display here - let periodic refresh handle it
     elseif msgType == Network.MSG_TYPES.COMMAND then
         -- Handle request_mode from turtles
         if data.command == "request_mode" then
@@ -268,7 +268,7 @@ local function handleMessage(senderId, msgType, data)
         -- Handle toggle_worker from pocket computer
         elseif data.command == "toggle_worker" and data.workerId then
             toggleTurtleMode(data.workerId)
-            updateDisplay()
+            -- Don't update display here - let periodic refresh handle it
             
             -- Send updated worker list back to requester
             local workerData = {}
@@ -338,7 +338,7 @@ local function handleMessage(senderId, msgType, data)
         
         local turtleName = turtles[senderId].name
         table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. ": " .. data.message)
-        updateDisplay()
+        -- Don't update display here - let periodic refresh handle it
     end
 end
 
