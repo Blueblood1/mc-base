@@ -208,6 +208,8 @@ function TurtleLib.createCommandListener(state, callbacks)
                     if oldMode ~= state.operatingMode then
                         callbacks.sendAlert("Mode changed: " .. tostring(oldMode) .. " -> " .. state.operatingMode)
                     end
+                    -- Always send telemetry after mode change
+                    callbacks.sendTelemetry()
                     
                 elseif data.command == "stop" then
                     callbacks.sendAlert("Received stop command")
