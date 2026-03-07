@@ -50,10 +50,11 @@ function Version.printBanner(programName)
     print("=================================")
 end
 
--- Log with version prefix
+-- Log with version prefix and timestamp
 function Version.log(message)
     local build = Version.get()
-    print("[v" .. tostring(build) .. "] " .. message)
+    local time = textutils.formatTime(os.time(), false)
+    print("[v" .. tostring(build) .. " " .. time .. "] " .. message)
 end
 
 return Version

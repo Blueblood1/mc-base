@@ -108,8 +108,17 @@ end
 local function mainLoop()
     local lastTelemetry = os.epoch("utc")
     
+    -- Clear any previous errors when starting/resuming
+    status.lastError = nil
+    
     while true do
         TurtleLib.checkPauseState(sharedState, sendTelemetry)
+        
+        -- Clear error after resuming from pause
+        if status.lastError then
+            status.lastError = nil
+            sendTelemetry()
+        end
         
         -- Check inventory periodically
         checkInventory()
