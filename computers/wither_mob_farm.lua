@@ -138,34 +138,33 @@ local function waitForCentralConnection()
         elseif event == "rednet_message" then
             Version.log("Received rednet_message event")
             Version.log("Param1 (sender): " .. tostring(param1))
+            Version.log("Param2 (message): " .. tostring(param2))
             Version.log("Param3 (protocol): " .. tostring(param3))
             
-            -- Receive without protocol filter to see everything
-            local rawSender, rawMessage, rawProtocol = rednet.receive(nil, 0)
-            if rawSender then
-                Version.log("Raw receive successful")
-                Version.log("Sender: " .. rawSender)
-                Version.log("Protocol: " .. tostring(rawProtocol))
-                Version.log("Message type: " .. type(rawMessage))
+            -- param1 = sender ID
+            -- param2 = message
+            -- param3 = protocol
+            
+            if param3 == Network.PROTOCOL and param1 == sharedState.centralId then
+                Version.log("Protocol and sender match!")
                 
-                -- Check if it's our protocol
-                if rawProtocol == Network.PROTOCOL then
-                    Version.log("Protocol matches!")
-                    if type(rawMessage) == "table" and rawMessage.type == Network.MSG_TYPES.COMMAND then
+                if type(param2) == "table" then
+                    Version.log("Message is a table")
+                    Version.log("Message.type: " .. tostring(param2.type))
+                    
+                    if param2.type == Network.MSG_TYPES.COMMAND then
                         Version.log("Message type is COMMAND")
-                        if rawMessage.data and rawMessage.data.command == "set_mode" then
+                        if param2.data and param2.data.command == "set_mode" then
                             Version.log("It's a set_mode command!")
-                            sharedState.operatingMode = rawMessage.data.mode
+                            sharedState.operatingMode = param2.data.mode
                             Version.log("Initial mode set to: " .. sharedState.operatingMode)
                             modeReceived = true
                             os.cancelTimer(timeout)
                         end
                     end
-                else
-                    Version.log("Protocol mismatch: expected " .. Network.PROTOCOL)
                 end
             else
-                Version.log("Raw receive returned nil")
+                Version.log("Protocol or sender mismatch")
             end
         end
     end
