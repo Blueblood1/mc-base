@@ -68,14 +68,28 @@ function Updater.download(githubPath, localFilename)
     
     local url = buildUrl(githubPath)
     print("Downloading " .. localFilename .. "...")
+    print("URL: " .. url)
     
     local response = http.get(url)
     if not response then
+        print("ERROR: Failed to get response from " .. url)
         return false, "Failed to download"
+    end
+    
+    local responseCode = response.getResponseCode()
+    if responseCode ~= 200 then
+        print("ERROR: HTTP " .. responseCode)
+        response.close()
+        return false, "HTTP error: " .. responseCode
     end
     
     local content = response.readAll()
     response.close()
+    
+    if not content or content == "" then
+        print("ERROR: Empty response")
+        return false, "Empty file"
+    end
     
     -- Check if content is different from existing file
     if fs.exists(localFilename) then
