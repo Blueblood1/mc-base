@@ -469,6 +469,16 @@ local function main()
     
     Network.host(HOSTNAME)
     Version.log("Network initialized")
+    
+    -- Test debug monitor
+    if debugMonitor then
+        debugLog("Debug monitor active")
+        debugLog("Computer ID: " .. os.getComputerID())
+        debugLog("Waiting for messages...")
+    else
+        Version.log("No debug monitor found")
+    end
+    
     sleep(1)
     
     -- Initial telemetry request
@@ -516,10 +526,21 @@ local function main()
             
         -- Handle rednet messages immediately
         elseif event == "rednet_message" then
-            -- Process the message that triggered this event
-            local senderId, msgType, data = Network.receive(0)
-            if senderId then
-                handleMessage(senderId, msgType, data)
+            debugLog("Rednet event from " .. param1)
+            
+            -- param1 = sender ID
+            -- param2 = message
+            -- param3 = protocol
+            
+            if param3 == Network.PROTOCOL then
+                debugLog("Protocol matches")
+                if type(param2) == "table" then
+                    handleMessage(param1, param2.type, param2.data)
+                else
+                    debugLog("Message not a table")
+                end
+            else
+                debugLog("Wrong protocol: " .. tostring(param3))
             end
             
         -- Handle monitor touch
