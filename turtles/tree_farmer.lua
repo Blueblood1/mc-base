@@ -687,29 +687,6 @@ local function main()
         Version.log("Resuming from saved state...")
         Version.log("Phase: " .. state.phase)
         sendTelemetry()
-        
-        -- Only resume work if not paused
-        if sharedState.operatingMode ~= "paused" then
-            -- Complete the interrupted cycle based on phase
-            if state.phase == "harvesting" then
-                Version.log("Completing harvest...")
-                harvestTree()
-                depositItems()
-            elseif state.phase == "growing" or state.phase == "planting" then
-                Version.log("Restarting growth cycle...")
-                -- Try to grow if saplings still there
-                if isSapling() then
-                    growTree()
-                    harvestTree()
-                end
-                depositItems()
-            end
-            
-            Version.log("Resumed cycle complete!")
-            sendTelemetry()
-        else
-            Version.log("Paused - will wait for resume in main loop")
-        end
     end
     
     Version.log("Entering main loop...")
@@ -725,6 +702,31 @@ local function main()
     -- Use waitForAll so both keep running
     parallel.waitForAll(
         function()
+            -- Handle resume work first if needed
+            if resuming then
+                -- Wait for unpause if paused
+                checkPauseState()
+                
+                -- Complete the interrupted cycle based on phase
+                if state.phase == "harvesting" then
+                    Version.log("Completing harvest...")
+                    harvestTree()
+                    depositItems()
+                elseif state.phase == "growing" or state.phase == "planting" then
+                    Version.log("Restarting growth cycle...")
+                    -- Try to grow if saplings still there
+                    if isSapling() then
+                        growTree()
+                        harvestTree()
+                    end
+                    depositItems()
+                end
+                
+                Version.log("Resumed cycle complete!")
+                sendTelemetry()
+            end
+            
+            -- Enter main loop
             while true do
                 local success, err = pcall(mainLoop)
                 if not success then
