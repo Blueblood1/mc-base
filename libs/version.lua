@@ -1,5 +1,5 @@
 -- Version Library
--- Provides build number information
+-- Provides build number information and logging
 
 local Version = {}
 
@@ -40,6 +40,12 @@ function Version.printBanner(programName)
     print(programName)
     print("Build: " .. tostring(build))
     print("=================================")
+end
+
+-- Log with version prefix
+function Version.log(message)
+    local build = Version.get()
+    print("[v" .. tostring(build) .. "] " .. message)
 end
 
 return Version

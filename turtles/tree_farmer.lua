@@ -11,6 +11,15 @@ pcall(function()
     Version = require("version")
 end)
 
+-- Logging helper
+local function log(message)
+    if Version then
+        Version.log(message)
+    else
+        print(message)
+    end
+end
+
 -- Configuration
 local FUEL_SLOT = 16
 local SAPLING_SLOTS_START = 1
@@ -31,8 +40,8 @@ local centralConnected = false
 
 -- Wait for initial connection and mode from central
 local function waitForCentralConnection()
-    print("Waiting for connection to central computer...")
-    print("Requesting initial mode...")
+    log("Waiting for connection to central computer...")
+    log("Requesting initial mode...")
     
     while not centralConnected do
         -- Try to find central
@@ -57,7 +66,7 @@ local function waitForCentralConnection()
             local event = os.pullEvent()
             
             if event == "timer" then
-                print("No response, retrying...")
+                log("No response, retrying...")
                 break
             elseif event == "rednet_message" then
                 local senderId, msgType, data = Network.receive(0)
@@ -66,7 +75,7 @@ local function waitForCentralConnection()
                         operatingMode = data.mode
                         centralId = senderId
                         centralConnected = true
-                        print("Connected to central! Mode: " .. operatingMode)
+                        log("Connected to central! Mode: " .. operatingMode)
                         os.cancelTimer(timeout)
                         return
                     end
@@ -255,7 +264,7 @@ local function checkPauseState()
     checkCommands()
     
     while operatingMode == "paused" do
-        print("Paused - waiting for resume...")
+        log("Paused - waiting for resume...")
         sendTelemetry()
         sleep(2)
         checkCommands()
@@ -776,27 +785,27 @@ local function mainLoop()
         -- Check if we're paused at the start of each cycle
         checkPauseState()
         
-        print("Starting fresh cycle...")
+        log("Starting fresh cycle...")
         
         checkFuelLock()
         checkPauseState() -- Check after fuel lock
         
         -- Load resources
-        print("Loading fuel...")
+        log("Loading fuel...")
         loadFuel()
         checkPauseState() -- Check after loading fuel
         
-        print("Loading saplings...")
+        log("Loading saplings...")
         loadSaplings()
         checkPauseState() -- Check after loading saplings
         
-        print("Loading bonemeal...")
+        log("Loading bonemeal...")
         loadBonemeal()
         checkPauseState() -- Check after loading bonemeal
         
         -- Check if we have required resources
         if not hasSaplings() then
-            print("No saplings available, waiting...")
+            log("No saplings available, waiting...")
             sendAlert("No saplings available, waiting for resupply")
             status.lastError = "No saplings available"
             sendTelemetry()
@@ -806,7 +815,7 @@ local function mainLoop()
                 sleep(1)
             end
         elseif not hasBonemeal() then
-            print("No bonemeal available, waiting...")
+            log("No bonemeal available, waiting...")
             sendAlert("No bonemeal available, waiting for resupply")
             status.lastError = "No bonemeal available"
             sendTelemetry()
@@ -820,28 +829,28 @@ local function mainLoop()
             sendTelemetry()
             
             -- Execute tree farming cycle
-            print("Planting 2x2 saplings...")
+            log("Planting 2x2 saplings...")
             placeSaplings()
             checkPauseState() -- Check after planting
             
-            print("Growing tree...")
+            log("Growing tree...")
             local grown = growTree()
             checkPauseState() -- Check after growing
             
             if grown then
-                print("Harvesting tree...")
+                log("Harvesting tree...")
                 harvestTree()
                 checkPauseState() -- Check after harvesting
                 
-                print("Depositing items...")
+                log("Depositing items...")
                 depositItems()
                 checkPauseState() -- Check after depositing
                 
-                print("Tree farming cycle complete!")
+                log("Tree farming cycle complete!")
                 sendTelemetry()
             else
                 -- Growth failed, clean up saplings and try again
-                print("Growth failed, cleaning up...")
+                log("Growth failed, cleaning up...")
                 for i = 1, 4 do
                     turtle.digDown()
                 end
@@ -855,7 +864,7 @@ end
 
 -- Main program
 local function main()
-    print("Networked Tree Farmer Starting...")
+    log("Networked Tree Farmer Starting...")
     
     -- Print version if available
     if Version then
@@ -865,12 +874,12 @@ local function main()
     
     -- Initialize network
     if not Network.init() then
-        print("ERROR: No modem found!")
-        print("Cannot connect to central computer.")
-        print("Please attach a wireless modem and reboot.")
+        log("ERROR: No modem found!")
+        log("Cannot connect to central computer.")
+        log("Please attach a wireless modem and reboot.")
         return
     else
-        print("Network initialized")
+        log("Network initialized")
         if not os.getComputerLabel() then
             os.setComputerLabel(TURTLE_NAME)
         end
@@ -885,17 +894,17 @@ local function main()
     local resuming = loadState()
     
     if resuming then
-        print("Resuming from saved state...")
-        print("Phase: " .. state.phase)
+        log("Resuming from saved state...")
+        log("Phase: " .. state.phase)
         sendTelemetry()
         
         -- Complete the interrupted cycle based on phase
         if state.phase == "harvesting" then
-            print("Completing harvest...")
+            log("Completing harvest...")
             harvestTree()
             depositItems()
         elseif state.phase == "growing" or state.phase == "planting" then
-            print("Restarting growth cycle...")
+            log("Restarting growth cycle...")
             -- Try to grow if saplings still there
             if isSapling() then
                 growTree()
@@ -904,20 +913,20 @@ local function main()
             depositItems()
         end
         
-        print("Resumed cycle complete!")
+        log("Resumed cycle complete!")
         sendTelemetry()
     end
     
-    print("Entering main loop...")
-    print("Mode: " .. operatingMode)
+    log("Entering main loop...")
+    log("Mode: " .. operatingMode)
     
     -- Wrap in error handler
     while true do
         local success, err = pcall(mainLoop)
         if not success then
-            print("Error in main loop: " .. tostring(err))
+            log("Error in main loop: " .. tostring(err))
             sendAlert("Critical error: " .. tostring(err))
-            print("Restarting in 10 seconds...")
+            log("Restarting in 10 seconds...")
             sleep(10)
         end
     end
