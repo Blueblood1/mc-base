@@ -25,6 +25,8 @@ Updater.MANIFEST = {
     ["network.lua"] = "libs/network.lua",
     ["turtle.lua"] = "libs/turtle.lua",
     ["updater.lua"] = "libs/updater.lua",
+    ["ui.lua"] = "libs/ui.lua",
+    ["state.lua"] = "libs/state.lua",
     
     -- Central Computer
     ["central_computer.lua"] = "computers/central_computer.lua",

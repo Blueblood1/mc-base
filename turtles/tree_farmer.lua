@@ -18,6 +18,9 @@ local TURTLE_NAME = "Tree Farmer"
 -- Central computer ID (will be discovered)
 local centralId = nil
 
+-- Operating mode
+local operatingMode = "running" -- "running" or "paused"
+
 -- State tracking
 local state = {
     phase = "idle",
@@ -121,6 +124,9 @@ local function checkCommands()
     if senderId and msgType == Network.MSG_TYPES.COMMAND then
         if data.command == "report_status" then
             sendTelemetry()
+        elseif data.command == "set_mode" then
+            operatingMode = data.mode or "running"
+            sendAlert("Mode set to: " .. operatingMode)
         elseif data.command == "stop" then
             sendAlert("Received stop command")
             error("Stopped by central command")
@@ -654,72 +660,79 @@ end
 -- Main program loop
 local function mainLoop()
     while true do
-        print("Starting fresh cycle...")
-        
-        checkFuelLock()
-        
-        -- Load resources
-        print("Loading fuel...")
-        loadFuel()
-        
-        print("Loading saplings...")
-        loadSaplings()
-        
-        print("Loading bonemeal...")
-        loadBonemeal()
-        
-        -- Check if we have required resources
-        if not hasSaplings() then
-            print("No saplings available, waiting...")
-            sendAlert("No saplings available, waiting for resupply")
-            status.lastError = "No saplings available"
+        -- Check if we're paused
+        if operatingMode == "paused" then
+            print("Paused - waiting for resume command...")
             sendTelemetry()
-            
-            for i = 1, 60 do
-                checkCommands()
-                sleep(1)
-            end
-        elseif not hasBonemeal() then
-            print("No bonemeal available, waiting...")
-            sendAlert("No bonemeal available, waiting for resupply")
-            status.lastError = "No bonemeal available"
-            sendTelemetry()
-            
-            for i = 1, 60 do
-                checkCommands()
-                sleep(1)
-            end
-        else
-            status.lastError = nil
-            sendTelemetry()
-            
-            -- Execute tree farming cycle
-            print("Planting 2x2 saplings...")
-            placeSaplings()
-            
-            print("Growing tree...")
-            local grown = growTree()
-            
-            if grown then
-                print("Harvesting tree...")
-                harvestTree()
-                
-                print("Depositing items...")
-                depositItems()
-                
-                print("Tree farming cycle complete!")
-                sendTelemetry()
-            else
-                -- Growth failed, clean up saplings and try again
-                print("Growth failed, cleaning up...")
-                for i = 1, 4 do
-                    turtle.digDown()
-                end
-                turtle.back()
-                refuel()
-            end
-            
+            checkCommands()
             sleep(2)
+        else
+            print("Starting fresh cycle...")
+            
+            checkFuelLock()
+            
+            -- Load resources
+            print("Loading fuel...")
+            loadFuel()
+            
+            print("Loading saplings...")
+            loadSaplings()
+            
+            print("Loading bonemeal...")
+            loadBonemeal()
+            
+            -- Check if we have required resources
+            if not hasSaplings() then
+                print("No saplings available, waiting...")
+                sendAlert("No saplings available, waiting for resupply")
+                status.lastError = "No saplings available"
+                sendTelemetry()
+                
+                for i = 1, 60 do
+                    checkCommands()
+                    sleep(1)
+                end
+            elseif not hasBonemeal() then
+                print("No bonemeal available, waiting...")
+                sendAlert("No bonemeal available, waiting for resupply")
+                status.lastError = "No bonemeal available"
+                sendTelemetry()
+                
+                for i = 1, 60 do
+                    checkCommands()
+                    sleep(1)
+                end
+            else
+                status.lastError = nil
+                sendTelemetry()
+                
+                -- Execute tree farming cycle
+                print("Planting 2x2 saplings...")
+                placeSaplings()
+                
+                print("Growing tree...")
+                local grown = growTree()
+                
+                if grown then
+                    print("Harvesting tree...")
+                    harvestTree()
+                    
+                    print("Depositing items...")
+                    depositItems()
+                    
+                    print("Tree farming cycle complete!")
+                    sendTelemetry()
+                else
+                    -- Growth failed, clean up saplings and try again
+                    print("Growth failed, cleaning up...")
+                    for i = 1, 4 do
+                        turtle.digDown()
+                    end
+                    turtle.back()
+                end
+                
+                sleep(2)
+            end
         end
     end
 end
