@@ -151,13 +151,21 @@ From central computer, click UPDATE to:
 - Devices reboot and resume
 
 ### Local Development Server
-For instant updates during development:
+For instant updates during development without GitHub's 5-minute cache delay:
 
 1. Start the server: `python server.py`
-2. Configure ComputerCraft to allow `127.0.0.1`
-3. Updates pull from local server (no GitHub cache delay)
+2. Add `127.0.0.1` to ComputerCraft's HTTP whitelist:
+   - Edit `config/computercraft-server.toml`
+   - Add:
+     ```toml
+     [[http.rules]]
+         host = "127.0.0.1"
+         action = "allow"
+     ```
+3. Restart your Minecraft server
+4. Updates now pull from local server first, then fallback to GitHub
 
-See SERVER.md for details.
+The server runs on port 8080 and serves files with no caching. Both the installer and updater automatically try the local server first (at `http://127.0.0.1:8080`) before falling back to GitHub.
 
 ## Remote Control
 
