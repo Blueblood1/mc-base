@@ -81,7 +81,7 @@ sendTelemetry = function()
     local inventory = TurtleLib.getInventoryStatus()
     
     local telemetryData = {
-        name = TURTLE_NAME .. " #" .. os.getComputerID(),
+        name = os.getComputerLabel() or (TURTLE_NAME .. " #" .. os.getComputerID()),
         status = state.phase == "idle" and "idle" or "working",
         fuel = fuel,
         inventory = inventory,
@@ -118,12 +118,12 @@ sendAlert = function(message)
     status.lastError = message
     if sharedState.centralId then
         Network.send(sharedState.centralId, Network.MSG_TYPES.ALERT, {
-            name = TURTLE_NAME .. " #" .. os.getComputerID(),
+            name = os.getComputerLabel() or (TURTLE_NAME .. " #" .. os.getComputerID()),
             message = message
         })
     else
         Network.broadcast(Network.MSG_TYPES.ALERT, {
-            name = TURTLE_NAME .. " #" .. os.getComputerID(),
+            name = os.getComputerLabel() or (TURTLE_NAME .. " #" .. os.getComputerID()),
             message = message
         })
     end

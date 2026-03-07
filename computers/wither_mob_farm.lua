@@ -36,7 +36,7 @@ sendTelemetry = function()
     end
     
     local telemetryData = {
-        name = COMPUTER_NAME .. " #" .. os.getComputerID(),
+        name = os.getComputerLabel() or (COMPUTER_NAME .. " #" .. os.getComputerID()),
         status = sharedState.operatingMode == "running" and "working" or "idle",
         task = {
             phase = sharedState.operatingMode == "running" and "emitting_redstone" or "idle",
@@ -65,12 +65,12 @@ sendAlert = function(message)
     status.lastError = message
     if sharedState.centralId then
         Network.send(sharedState.centralId, Network.MSG_TYPES.ALERT, {
-            name = COMPUTER_NAME .. " #" .. os.getComputerID(),
+            name = os.getComputerLabel() or (COMPUTER_NAME .. " #" .. os.getComputerID()),
             message = message
         })
     else
         Network.broadcast(Network.MSG_TYPES.ALERT, {
-            name = COMPUTER_NAME .. " #" .. os.getComputerID(),
+            name = os.getComputerLabel() or (COMPUTER_NAME .. " #" .. os.getComputerID()),
             message = message
         })
     end
