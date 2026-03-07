@@ -931,16 +931,21 @@ local function main()
     log("Entering main loop...")
     log("Mode: " .. operatingMode)
     
-    -- Wrap in error handler
-    while true do
-        local success, err = pcall(mainLoop)
-        if not success then
-            log("Error in main loop: " .. tostring(err))
-            sendAlert("Critical error: " .. tostring(err))
-            log("Restarting in 10 seconds...")
-            sleep(10)
-        end
-    end
+    -- Run main loop and command listener in parallel
+    parallel.waitForAny(
+        function()
+            while true do
+                local success, err = pcall(mainLoop)
+                if not success then
+                    log("Error in main loop: " .. tostring(err))
+                    sendAlert("Critical error: " .. tostring(err))
+                    log("Restarting in 10 seconds...")
+                    sleep(10)
+                end
+            end
+        end,
+        commandListener
+    )
 end
 
 -- Run the program
