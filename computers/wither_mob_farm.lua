@@ -110,9 +110,6 @@ local function waitForCentralConnection()
     Version.log("Found central computer: " .. sharedState.centralId)
     sharedState.centralConnected = true
     
-    -- Small delay to let any DNS responses clear
-    sleep(0.1)
-    
     -- Request initial mode
     Network.send(sharedState.centralId, Network.MSG_TYPES.COMMAND, {
         command = "request_mode",
@@ -125,46 +122,26 @@ local function waitForCentralConnection()
     local timeout = os.startTimer(5)
     local modeReceived = false
     
-    Version.log("Waiting for response...")
-    
     while not modeReceived do
         local event, param1, param2, param3 = os.pullEvent()
-        
-        Version.log("Event: " .. event)
         
         if event == "timer" and param1 == timeout then
             Version.log("Timeout waiting for mode, defaulting to paused")
             break
         elseif event == "rednet_message" then
-            Version.log("Received rednet_message event")
-            Version.log("Param1 (sender): " .. tostring(param1))
-            Version.log("Param2 (message): " .. tostring(param2))
-            Version.log("Param3 (protocol): " .. tostring(param3))
-            
             -- param1 = sender ID
             -- param2 = message
             -- param3 = protocol
             
             if param3 == Network.PROTOCOL and param1 == sharedState.centralId then
-                Version.log("Protocol and sender match!")
-                
-                if type(param2) == "table" then
-                    Version.log("Message is a table")
-                    Version.log("Message.type: " .. tostring(param2.type))
-                    
-                    if param2.type == Network.MSG_TYPES.COMMAND then
-                        Version.log("Message type is COMMAND")
-                        if param2.data and param2.data.command == "set_mode" then
-                            Version.log("It's a set_mode command!")
-                            sharedState.operatingMode = param2.data.mode
-                            Version.log("Initial mode set to: " .. sharedState.operatingMode)
-                            modeReceived = true
-                            os.cancelTimer(timeout)
-                        end
+                if type(param2) == "table" and param2.type == Network.MSG_TYPES.COMMAND then
+                    if param2.data and param2.data.command == "set_mode" then
+                        sharedState.operatingMode = param2.data.mode
+                        Version.log("Initial mode set to: " .. sharedState.operatingMode)
+                        modeReceived = true
+                        os.cancelTimer(timeout)
                     end
                 end
-            else
-                Version.log("Protocol or sender mismatch")
             end
         end
     end

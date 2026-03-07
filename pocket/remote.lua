@@ -30,17 +30,9 @@ local function sendCommand(command, data)
     if centralId ~= nil then
         data = data or {}
         data.command = command
-        
-        if Version then
-            Version.log("Sending " .. command .. " to central " .. centralId)
-        end
-        
         Network.send(centralId, Network.MSG_TYPES.COMMAND, data)
         return true
     else
-        if Version then
-            Version.log("Cannot send - no central ID")
-        end
         return false
     end
 end
