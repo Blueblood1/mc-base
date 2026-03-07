@@ -335,7 +335,7 @@ local function main()
     
     -- Check for updates
     print("Checking for updates...")
-    local results = Updater.updateAll()
+    local results = Updater.updateLocal()
     local updated = false
     for filename, result in pairs(results) do
         if result.success then
