@@ -50,11 +50,20 @@ function Version.printBanner(programName)
     print("=================================")
 end
 
--- Log with version prefix and timestamp
+-- Log with version prefix and real-world timestamp
 function Version.log(message)
     local build = Version.get()
-    local time = textutils.formatTime(os.time(), false)
-    print("[v" .. tostring(build) .. " " .. time .. "] " .. message)
+    -- Get real-world time in milliseconds since epoch
+    local epoch = os.epoch("local")
+    -- Convert to seconds
+    local seconds = math.floor(epoch / 1000)
+    -- Calculate hours, minutes, seconds
+    local hours = math.floor(seconds / 3600) % 24
+    local minutes = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    -- Format as HH:MM:SS
+    local time = string.format("%02d:%02d:%02d", hours, minutes, secs)
+    print("[" .. tostring(build) .. " " .. time .. "] " .. message)
 end
 
 return Version
