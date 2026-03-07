@@ -12,6 +12,7 @@ local FUEL_SLOT = 1
 local SOUL_SAND_SLOT = 2
 local SKULL_SLOT = 3  -- Wither skeleton skulls (dirt for testing)
 local NUM_CELLS = 2  -- Testing with 2 cells for now
+local CYCLE_FUEL_REQUIREMENT = 200  -- Estimated fuel for full cycle (will adjust after testing)
 
 -- Shared state
 local sharedState = {
@@ -39,9 +40,12 @@ sendTelemetry = function()
         sharedState.centralId = Network.lookup("central")
     end
     
+    local fuel = Turtle.getFuelStatus()
+    
     local telemetryData = {
         name = os.getComputerLabel() or (TURTLE_NAME .. " #" .. os.getComputerID()),
         status = sharedState.operatingMode == "running" and "working" or "idle",
+        fuel = fuel,
         task = {
             phase = status.currentCell > 0 and ("building_cell_" .. status.currentCell) or "idle",
             currentCell = status.currentCell
@@ -179,61 +183,78 @@ end
 local function buildWitherInCell(cellNumber)
     Version.log("Building wither in cell " .. cellNumber)
     status.currentCell = cellNumber
+    sendTelemetry()  -- Send telemetry on phase change
     
     -- Move forward 2 blocks
+    Version.log("Moving forward 2 blocks...")
     for i = 1, 2 do
         if not turtle.forward() then
-            sendAlert("Failed to move forward 2")
+            sendAlert("Failed to move forward at step " .. i .. "/2")
             return false
         end
     end
     
+    -- Check pause state before opening door
+    Turtle.checkPauseState(sharedState, sendTelemetry)
+    
     -- Request door open
+    Version.log("Requesting door " .. cellNumber .. " open...")
     if not openDoor(cellNumber) then
         return false
     end
     
     -- Move forward 4 blocks into cell
+    Version.log("Moving into cell (4 blocks)...")
     for i = 1, 4 do
         if not turtle.forward() then
-            sendAlert("Failed to move into cell")
+            sendAlert("Failed to move into cell at step " .. i .. "/4")
             return false
         end
     end
     
     -- Request previous door close (if not first cell)
     if cellNumber > 1 then
+        Version.log("Closing door " .. (cellNumber - 1) .. "...")
         if not closeDoor(cellNumber - 1) then
             return false
         end
     end
     
+    -- Check pause state before building
+    Turtle.checkPauseState(sharedState, sendTelemetry)
+    
     -- Turn around to face where we came from
+    Version.log("Turning around...")
     turtle.turnRight()
     turtle.turnRight()
     
     -- Ascend once (don't place soul sand yet - bottom is last)
+    Version.log("Ascending 1 block...")
     if not turtle.up() then
         sendAlert("Failed to ascend")
         return false
     end
     
     -- Turn right
+    Version.log("Turning right...")
     turtle.turnRight()
     
     -- Move forward once
+    Version.log("Moving to right arm position...")
     if not turtle.forward() then
         sendAlert("Failed to move right")
         return false
     end
     
     -- Turn left and place soul sand
+    Version.log("Placing right arm soul sand...")
     turtle.turnLeft()
     if not placeSoulSand() then
         return false
     end
     
     -- Ascend once and place wither skull
+    Version.log("Ascending and placing right skull...")
     if not turtle.up() then
         sendAlert("Failed to ascend for skull")
         return false
@@ -243,29 +264,34 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Descend once
+    Version.log("Descending...")
     if not turtle.down() then
         sendAlert("Failed to descend")
         return false
     end
     
     -- Turn left
+    Version.log("Turning left to center...")
     turtle.turnLeft()
     
     -- Move forward twice
+    Version.log("Moving to center (2 blocks)...")
     for i = 1, 2 do
         if not turtle.forward() then
-            sendAlert("Failed to move to center")
+            sendAlert("Failed to move to center at step " .. i .. "/2")
             return false
         end
     end
     
     -- Turn right and place soul sand
+    Version.log("Placing center soul sand...")
     turtle.turnRight()
     if not placeSoulSand() then
         return false
     end
     
     -- Ascend once and place wither skull
+    Version.log("Ascending and placing center skull...")
     if not turtle.up() then
         sendAlert("Failed to ascend for center skull")
         return false
@@ -275,27 +301,32 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Descend once
+    Version.log("Descending from center...")
     if not turtle.down() then
         sendAlert("Failed to descend from center")
         return false
     end
     
     -- Turn right
+    Version.log("Turning right to left arm...")
     turtle.turnRight()
     
     -- Move forward once
+    Version.log("Moving to left arm position...")
     if not turtle.forward() then
         sendAlert("Failed to move to left position")
         return false
     end
     
     -- Turn left and place soul sand
+    Version.log("Placing left arm soul sand...")
     turtle.turnLeft()
     if not placeSoulSand() then
         return false
     end
     
     -- Ascend once and place wither skull
+    Version.log("Ascending and placing left skull...")
     if not turtle.up() then
         sendAlert("Failed to ascend for left skull")
         return false
@@ -305,31 +336,39 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Descend twice (back to ground level)
+    Version.log("Descending to ground (2 blocks)...")
     for i = 1, 2 do
         if not turtle.down() then
-            sendAlert("Failed to descend to ground")
+            sendAlert("Failed to descend to ground at step " .. i .. "/2")
             return false
         end
     end
     
+    -- Check pause state before opening next door
+    Turtle.checkPauseState(sharedState, sendTelemetry)
+    
     -- Request next door open
+    Version.log("Requesting door " .. (cellNumber + 1) .. " open...")
     if not openDoor(cellNumber + 1) then
         return false
     end
     
     -- Place soul sand (bottom of T)
+    Version.log("Placing bottom soul sand...")
     if not placeSoulSand() then
         return false
     end
     
     -- Turn 180
+    Version.log("Turning around...")
     turtle.turnRight()
     turtle.turnRight()
     
     -- Move forward 4 blocks (into next cell position)
+    Version.log("Moving to next cell (4 blocks)...")
     for i = 1, 4 do
         if not turtle.forward() then
-            sendAlert("Failed to move to next cell")
+            sendAlert("Failed to move to next cell at step " .. i .. "/4")
             return false
         end
     end
@@ -341,6 +380,13 @@ end
 
 -- Main farming loop
 local function mainLoop()
+    -- Check pause state
+    Turtle.checkPauseState(sharedState, sendTelemetry)
+    
+    -- Ensure we have enough fuel for the cycle
+    Version.log("Checking fuel...")
+    Turtle.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendTelemetry, sendAlert)
+    
     -- Find the farm computer
     if not findFarmComputer() then
         return
@@ -379,6 +425,20 @@ local function main()
         os.setComputerLabel(TURTLE_NAME .. "_" .. os.getComputerID())
     end
     
+    -- Install startup file
+    if not fs.exists("startup") and not fs.exists("startup.lua") then
+        Version.log("Installing startup file...")
+        local file = fs.open("startup.lua", "w")
+        file.write('-- Auto-start wither boss farmer on boot\n')
+        file.write('print("Checking for updates...")\n')
+        file.write('local Updater = require("updater")\n')
+        file.write('Updater.updateLocal()\n')
+        file.write('print("Starting wither boss farmer...")\n')
+        file.write('shell.run("wither_boss_farmer")\n')
+        file.close()
+        Version.log("Startup file installed!")
+    end
+    
     -- Wait for connection to central
     Worker.waitForCentralConnection(sharedState, TURTLE_NAME)
     
@@ -387,14 +447,27 @@ local function main()
     
     Version.log("Starting main loop...")
     
-    -- Run main loop
-    local success, err = pcall(mainLoop)
-    if not success then
-        Version.log("Error: " .. tostring(err))
-        sendAlert("Critical error: " .. tostring(err))
-    end
+    -- Create command listener
+    local commandListener = Worker.createCommandListener(sharedState, {
+        sendAlert = sendAlert,
+        sendTelemetry = sendTelemetry
+    })
     
-    Version.log("Program ended")
+    -- Run main loop and command listener in parallel
+    parallel.waitForAll(
+        function()
+            while true do
+                local success, err = pcall(mainLoop)
+                if not success then
+                    Version.log("Error: " .. tostring(err))
+                    sendAlert("Critical error: " .. tostring(err))
+                    Version.log("Restarting in 10 seconds...")
+                    sleep(10)
+                end
+            end
+        end,
+        commandListener
+    )
 end
 
 -- Run the program
