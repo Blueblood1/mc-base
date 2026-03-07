@@ -65,9 +65,9 @@ local function waitForCentralConnection()
         -- Wait for response
         local timeout = os.startTimer(3)
         while true do
-            local event = os.pullEvent()
+            local event, param1 = os.pullEvent()
             
-            if event == "timer" then
+            if event == "timer" and param1 == timeout then
                 log("No response, retrying...")
                 break
             elseif event == "rednet_message" then
