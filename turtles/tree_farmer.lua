@@ -702,26 +702,28 @@ local function main()
         log("Phase: " .. state.phase)
         sendTelemetry()
         
-        -- Check if paused before resuming work
-        checkPauseState()
-        
-        -- Complete the interrupted cycle based on phase
-        if state.phase == "harvesting" then
-            log("Completing harvest...")
-            harvestTree()
-            depositItems()
-        elseif state.phase == "growing" or state.phase == "planting" then
-            log("Restarting growth cycle...")
-            -- Try to grow if saplings still there
-            if isSapling() then
-                growTree()
+        -- Only resume work if not paused
+        if sharedState.operatingMode ~= "paused" then
+            -- Complete the interrupted cycle based on phase
+            if state.phase == "harvesting" then
+                log("Completing harvest...")
                 harvestTree()
+                depositItems()
+            elseif state.phase == "growing" or state.phase == "planting" then
+                log("Restarting growth cycle...")
+                -- Try to grow if saplings still there
+                if isSapling() then
+                    growTree()
+                    harvestTree()
+                end
+                depositItems()
             end
-            depositItems()
+            
+            log("Resumed cycle complete!")
+            sendTelemetry()
+        else
+            log("Paused - will wait for resume in main loop")
         end
-        
-        log("Resumed cycle complete!")
-        sendTelemetry()
     end
     
     log("Entering main loop...")
