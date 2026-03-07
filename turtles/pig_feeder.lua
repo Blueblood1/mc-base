@@ -4,6 +4,7 @@
 local Network = require("network")
 local TurtleLib = require("turtle")
 local Updater = require("updater")
+local Version = require("version")
 
 -- Configuration
 local FUEL_SLOT = 16
@@ -179,14 +180,14 @@ local function checkFuelLock()
     local fuel = TurtleLib.getFuelStatus()
     
     if fuel.percent <= 5 then
-        print("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
+        Version.log("FUEL LOCK: Critical fuel level (" .. fuel.percent .. "%)")
         sendAlert("FUEL LOCK: Critical fuel level, waiting for refuel")
         status.lastError = "FUEL LOCK: Critical fuel"
         sendTelemetry()
         
         -- Stay in fuel lock until we get above 5%
         while fuel.percent <= 5 do
-            print("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
+            Version.log("Fuel: " .. fuel.percent .. "% - Waiting for refuel...")
             
             -- Try to load fuel
             turtle.select(FUEL_SLOT)
@@ -205,7 +206,7 @@ local function checkFuelLock()
             sleep(5)
         end
         
-        print("Fuel lock released: " .. fuel.percent .. "%")
+        Version.log("Fuel lock released: " .. fuel.percent .. "%")
         sendAlert("Fuel lock released: " .. fuel.percent .. "%")
         status.lastError = nil
         sendTelemetry()
@@ -392,21 +393,21 @@ end
 -- Main program loop (runs forever)
 local function mainLoop()
     while true do
-        print("Starting fresh cycle...")
+        Version.log("Starting fresh cycle...")
         
         -- Check fuel lock BEFORE starting cycle
         checkFuelLock()
         
         -- Load resources
-        print("Loading fuel...")
+        Version.log("Loading fuel...")
         loadFuel()
         
-        print("Loading food...")
+        Version.log("Loading food...")
         loadFood()
         
         -- Check if we have food
         if not hasFood() then
-            print("No food available, waiting...")
+            Version.log("No food available, waiting...")
             sendAlert("No food available, waiting for resupply")
             status.lastError = "No food available"
             sendTelemetry()
@@ -421,13 +422,13 @@ local function mainLoop()
             sendTelemetry()
             
             -- Execute feeding cycle
-            print("Navigating to pig farm...")
+            Version.log("Navigating to pig farm...")
             navigateGrid()
             
-            print("Returning home...")
+            Version.log("Returning home...")
             returnHome()
             
-            print("Feeding cycle complete!")
+            Version.log("Feeding cycle complete!")
             sendTelemetry()
             
             -- Brief pause before next cycle
@@ -458,36 +459,36 @@ local function main()
     local resuming = loadState()
     
     if resuming then
-        print("Resuming from saved state...")
-        print("Phase: " .. state.phase)
-        print("Position: Row " .. state.row .. ", Col " .. state.col)
+        Version.log("Resuming from saved state...")
+        Version.log("Phase: " .. state.phase)
+        Version.log("Position: Row " .. state.row .. ", Col " .. state.col)
         sendTelemetry()
         
         -- Complete the interrupted cycle
         if state.phase == "idle" or state.phase == "descending" or state.phase == "navigating" then
-            print("Completing interrupted cycle...")
+            Version.log("Completing interrupted cycle...")
             navigateGrid()
         end
         
         if state.phase == "ascending" then
-            print("Returning home...")
+            Version.log("Returning home...")
             returnHome()
         end
         
-        print("Resumed cycle complete!")
+        Version.log("Resumed cycle complete!")
         sendTelemetry()
     end
     
     -- Enter main loop (never exits)
-    print("Entering main loop...")
+    Version.log("Entering main loop...")
     
     -- Wrap in error handler to prevent crashes
     while true do
         local success, err = pcall(mainLoop)
         if not success then
-            print("Error in main loop: " .. tostring(err))
+            Version.log("Error in main loop: " .. tostring(err))
             sendAlert("Critical error: " .. tostring(err))
-            print("Restarting in 10 seconds...")
+            Version.log("Restarting in 10 seconds...")
             sleep(10)
         end
     end

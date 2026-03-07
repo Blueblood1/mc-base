@@ -62,8 +62,6 @@ end
 local function toggleTurtleMode(turtleId)
     local newMode = State.toggleTurtleMode(centralState, turtleId)
     
-    print("DEBUG: Sending set_mode=" .. newMode .. " to turtle " .. turtleId)
-    
     Network.send(turtleId, Network.MSG_TYPES.COMMAND, {
         command = "set_mode",
         mode = newMode
@@ -335,22 +333,22 @@ local function main()
     
     -- Load state
     centralState = State.load()
-    print("State loaded")
+    Version.log("State loaded")
     
     -- Check for updates
-    print("Checking for updates...")
+    Version.log("Checking for updates...")
     local results = Updater.updateLocal()
     local updated = false
     for filename, result in pairs(results) do
         if result.success then
-            print("Updated: " .. filename)
+            Version.log("Updated: " .. filename)
             updated = true
         end
     end
     
     if updated then
-        print("Updates applied, rebooting in 3 seconds...")
-        print("Press any key to cancel")
+        Version.log("Updates applied, rebooting in 3 seconds...")
+        Version.log("Press any key to cancel")
         local timer = os.startTimer(3)
         local event, param = os.pullEvent()
         if event == "timer" and param == timer then
@@ -365,7 +363,7 @@ local function main()
     for _, side in ipairs({"top", "bottom", "left", "right", "front", "back"}) do
         if peripheral.getType(side) == "monitor" then
             monitorSide = side
-            print("Monitor found on " .. side)
+            Version.log("Monitor found on " .. side)
             break
         end
     end
@@ -375,18 +373,18 @@ local function main()
         mon.setTextScale(0.5)
         screen = UI.Screen:new(mon)
     else
-        print("No monitor found, using terminal")
+        Version.log("No monitor found, using terminal")
         screen = UI.Screen:new()
     end
     
     -- Initialize network
     if not Network.init() then
-        print("Error: No modem found!")
+        Version.log("Error: No modem found!")
         return
     end
     
     Network.host(HOSTNAME)
-    print("Network initialized")
+    Version.log("Network initialized")
     sleep(1)
     
     -- Initial telemetry request
@@ -456,7 +454,7 @@ local function main()
         end
     end
     
-    print("Shutting down...")
+    Version.log("Shutting down...")
     Network.close()
 end
 
