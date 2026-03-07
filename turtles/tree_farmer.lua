@@ -71,16 +71,12 @@ local function waitForCentralConnection()
                 log("No response, retrying...")
                 break
             elseif event == "rednet_message" then
-                log("DEBUG: Got rednet message")
                 local senderId = param1
                 local message = param2
                 local protocol = param3
                 
-                log("DEBUG: senderId=" .. tostring(senderId) .. " protocol=" .. tostring(protocol))
-                
                 if protocol == Network.PROTOCOL and message and message.type == Network.MSG_TYPES.COMMAND then
                     local data = message.data
-                    log("DEBUG: Got COMMAND, data.command=" .. tostring(data.command))
                     if data.command == "set_mode" and data.mode then
                         operatingMode = data.mode
                         centralId = senderId
@@ -245,8 +241,9 @@ local function checkCommands()
         if data.command == "report_status" then
             sendTelemetry()
         elseif data.command == "set_mode" then
+            local oldMode = operatingMode
             operatingMode = data.mode or "running"
-            sendAlert("Mode set to: " .. operatingMode)
+            log("Mode changed: " .. oldMode .. " -> " .. operatingMode)
         elseif data.command == "stop" then
             sendAlert("Received stop command")
             error("Stopped by central command")
