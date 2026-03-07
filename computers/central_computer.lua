@@ -12,6 +12,12 @@ local function ensureLibraries()
     if not fs.exists("state.lua") then
         table.insert(missingLibs, "state.lua")
     end
+    if not fs.exists("version.lua") then
+        table.insert(missingLibs, "version.lua")
+    end
+    if not fs.exists("VERSION") then
+        table.insert(missingLibs, "VERSION")
+    end
     
     if #missingLibs > 0 then
         print("Downloading missing libraries...")
@@ -31,6 +37,7 @@ local Network = require("network")
 local Updater = require("updater")
 local UI = require("ui")
 local State = require("state")
+local Version = require("version")
 
 -- Configuration
 local HOSTNAME = "central"
@@ -80,7 +87,7 @@ local function updateDisplay()
     -- Header
     screen:setTextColor(colors.yellow)
     screen:print("=== CENTRAL COMMAND SYSTEM ===")
-    screen:print("Computer ID: " .. os.getComputerID())
+    screen:print("Computer ID: " .. os.getComputerID() .. " | Build: " .. Version.get())
     screen:print("Time: " .. os.date("%H:%M:%S"))
     screen:print("")
     
@@ -300,7 +307,10 @@ end
 local function main()
     term.clear()
     term.setCursorPos(1, 1)
-    print("Initializing Central Command System v2...")
+    
+    -- Print version banner
+    Version.printBanner("Central Command System v2")
+    print("")
     
     -- Load state
     centralState = State.load()

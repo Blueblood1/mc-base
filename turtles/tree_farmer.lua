@@ -5,6 +5,12 @@ local Network = require("network")
 local TurtleLib = require("turtle")
 local Updater = require("updater")
 
+-- Try to load version, but don't fail if it doesn't exist
+local Version = nil
+pcall(function()
+    Version = require("version")
+end)
+
 -- Configuration
 local FUEL_SLOT = 16
 local SAPLING_SLOTS_START = 1
@@ -740,6 +746,12 @@ end
 -- Main program
 local function main()
     print("Networked Tree Farmer Starting...")
+    
+    -- Print version if available
+    if Version then
+        Version.printBanner("Tree Farmer")
+        print("")
+    end
     
     -- Initialize network
     if not Network.init() then

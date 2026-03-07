@@ -95,6 +95,14 @@ local function install(args)
     local success = 0
     local failed = 0
     
+    -- Install VERSION file first
+    print("Installing version info...")
+    if download("VERSION", "VERSION") then
+        success = success + 1
+    else
+        failed = failed + 1
+    end
+    
     -- Install libraries (always needed)
     print("Installing libraries...")
     if download("libs/network.lua", "network.lua") then
@@ -109,6 +117,13 @@ local function install(args)
     else
         failed = failed + 1
         print("FAILED: updater.lua")
+    end
+    
+    if download("libs/version.lua", "version.lua") then
+        success = success + 1
+    else
+        failed = failed + 1
+        print("FAILED: version.lua")
     end
     
     if isTurtle then
