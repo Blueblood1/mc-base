@@ -17,6 +17,13 @@ local TURTLE_NAME = "Cow Feeder"
 
 -- Central computer ID (will be discovered)
 local centralId = nil
+local centralConnected = false
+local operatingMode = "running"
+local stopRequested = false
+
+-- Forward declarations
+local sendAlert
+local sendTelemetry
 
 -- State tracking
 local state = {
@@ -103,7 +110,7 @@ local function sendTelemetry()
 end
 
 -- Send alert to central computer
-local function sendAlert(message)
+sendAlert = function(message)
     status.lastError = message
     if centralId then
         Network.send(centralId, Network.MSG_TYPES.ALERT, {
@@ -115,6 +122,53 @@ local function sendAlert(message)
             name = TURTLE_NAME,
             message = message
         })
+    end
+end
+
+-- Command listener for parallel execution
+local function commandListener()
+    while not stopRequested do
+        local senderId, msgType, data = Network.receive(1)
+        if senderId and msgType == Network.MSG_TYPES.COMMAND then
+            if data.command == "report_status" then
+                sendTelemetry()
+            elseif data.command == "set_mode" then
+                local oldMode = operatingMode
+                operatingMode = data.mode or "running"
+                centralId = senderId
+                centralConnected = true
+                if oldMode ~= operatingMode then
+                    sendAlert("Mode changed: " .. tostring(oldMode) .. " -> " .. operatingMode)
+                end
+            elseif data.command == "stop" then
+                sendAlert("Received stop command")
+                stopRequested = true
+            elseif data.command == "update" then
+                sendAlert("Received update command, updating...")
+                local results = Updater.updateLocal()
+                local successCount = 0
+                local failCount = 0
+                for filename, result in pairs(results) do
+                    if result.success then
+                        successCount = successCount + 1
+                    else
+                        failCount = failCount + 1
+                    end
+                end
+                sendAlert("Update complete: " .. successCount .. " success, " .. failCount .. " failed")
+                sleep(2)
+                os.reboot()
+            end
+        end
+    end
+end
+
+-- Check if paused and wait until resumed
+local function checkPauseState()
+    while operatingMode == "paused" do
+        Version.log("Paused - waiting for resume...")
+        sendTelemetry()
+        sleep(2)
     end
 end
 
@@ -447,17 +501,22 @@ end
 -- Main program loop (runs forever)
 local function mainLoop()
     while true do
+        checkPauseState()
+        
         Version.log("Starting fresh cycle...")
         
         -- Check fuel lock BEFORE starting cycle
         checkFuelLock()
+        checkPauseState()
         
         -- Load resources
         Version.log("Loading fuel...")
         loadFuel()
+        checkPauseState()
         
         Version.log("Loading food...")
         loadFood()
+        checkPauseState()
         
         -- Check if we have food
         if not hasFood() then
@@ -551,16 +610,21 @@ local function main()
     -- Enter main loop (never exits)
     Version.log("Entering main loop...")
     
-    -- Wrap in error handler to prevent crashes
-    while true do
-        local success, err = pcall(mainLoop)
-        if not success then
-            Version.log("Error in main loop: " .. tostring(err))
-            sendAlert("Critical error: " .. tostring(err))
-            Version.log("Restarting in 10 seconds...")
-            sleep(10)
-        end
-    end
+    -- Run main loop and command listener in parallel
+    parallel.waitForAll(
+        function()
+            while true do
+                local success, err = pcall(mainLoop)
+                if not success then
+                    Version.log("Error in main loop: " .. tostring(err))
+                    sendAlert("Critical error: " .. tostring(err))
+                    Version.log("Restarting in 10 seconds...")
+                    sleep(10)
+                end
+            end
+        end,
+        commandListener
+    )
 end
 
 -- Run the program

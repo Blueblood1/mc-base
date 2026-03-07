@@ -181,4 +181,71 @@ function TurtleLib.getIdentifier()
     return os.getComputerLabel() or "turtle_" .. os.getComputerID()
 end
 
+-- Create a command listener that runs in parallel
+-- Parameters:
+--   state: shared state table with:
+--     operatingMode, stopRequested, centralId, centralConnected
+--   callbacks: {
+--     sendAlert: function to send alerts
+--     sendTelemetry: function to send telemetry
+--   }
+function TurtleLib.createCommandListener(state, callbacks)
+    local Network = require("network")
+    local Updater = require("updater")
+    
+    return function()
+        while not state.stopRequested do
+            local senderId, msgType, data = Network.receive(1)
+            if senderId and msgType == Network.MSG_TYPES.COMMAND then
+                if data.command == "report_status" then
+                    callbacks.sendTelemetry()
+                    
+                elseif data.command == "set_mode" then
+                    local oldMode = state.operatingMode
+                    state.operatingMode = data.mode or "running"
+                    state.centralId = senderId
+                    state.centralConnected = true
+                    if oldMode ~= state.operatingMode then
+                        callbacks.sendAlert("Mode changed: " .. tostring(oldMode) .. " -> " .. state.operatingMode)
+                    end
+                    
+                elseif data.command == "stop" then
+                    callbacks.sendAlert("Received stop command")
+                    state.stopRequested = true
+                    
+                elseif data.command == "update" then
+                    callbacks.sendAlert("Received update command, updating...")
+                    local results = Updater.updateLocal()
+                    local successCount = 0
+                    local failCount = 0
+                    for filename, result in pairs(results) do
+                        if result.success then
+                            successCount = successCount + 1
+                        else
+                            failCount = failCount + 1
+                        end
+                    end
+                    callbacks.sendAlert("Update complete: " .. successCount .. " success, " .. failCount .. " failed")
+                    sleep(2)
+                    os.reboot()
+                end
+            end
+        end
+    end
+end
+
+-- Check if paused and wait until resumed
+-- Parameters:
+--   state: shared state table with operatingMode
+--   sendTelemetry: function to send telemetry
+function TurtleLib.checkPauseState(state, sendTelemetry)
+    local Version = require("version")
+    
+    while state.operatingMode == "paused" do
+        Version.log("Paused - waiting for resume...")
+        sendTelemetry()
+        sleep(2)
+    end
+end
+
 return TurtleLib
