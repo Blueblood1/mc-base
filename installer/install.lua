@@ -3,6 +3,9 @@
 -- Usage: install [turtle_type]
 -- Example: install pig_feeder  OR  install cow_feeder
 
+local GITHUB_USER = "Blueblood1"
+local GITHUB_REPO = "mc-base"
+local GITHUB_BRANCH = "master"
 local LOCAL_SERVER = "http://127.0.0.1:8080"
 
 -- Build URL with fallback logic
@@ -92,8 +95,7 @@ local function install(args)
     local turtleType = args[1]
     
     print("=== MC Base Automation System ===")
-    print("Installing from GitHub...")
-    print("Repo: " .. GITHUB_USER .. "/" .. GITHUB_REPO)
+    print("Installing...")
     print("")
     
     -- Detect device type
