@@ -5,17 +5,17 @@ local Version = {}
 
 Version.BUILD_NUMBER = nil
 
--- Read version from local VERSION file
+-- Read version from local BUILD_NUMBER file
 function Version.get()
     if Version.BUILD_NUMBER then
         return Version.BUILD_NUMBER
     end
     
-    if not fs.exists("VERSION") then
+    if not fs.exists("BUILD_NUMBER") then
         return "?"
     end
     
-    local file = fs.open("VERSION", "r")
+    local file = fs.open("BUILD_NUMBER", "r")
     if not file then
         return "?"
     end

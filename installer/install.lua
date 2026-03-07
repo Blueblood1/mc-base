@@ -3,9 +3,6 @@
 -- Usage: install [turtle_type]
 -- Example: install pig_feeder  OR  install cow_feeder
 
-local GITHUB_USER = "Blueblood1"
-local GITHUB_REPO = "mc-base"
-local GITHUB_BRANCH = "master"
 local LOCAL_SERVER = "http://127.0.0.1:8080"
 
 -- Build URL with fallback logic
@@ -139,9 +136,9 @@ local function install(args)
     local success = 0
     local failed = 0
     
-    -- Install VERSION file first
+    -- Install BUILD_NUMBER file first
     print("Installing version info...")
-    if download("VERSION", "VERSION") then
+    if download("BUILD_NUMBER", "BUILD_NUMBER") then
         success = success + 1
     else
         failed = failed + 1

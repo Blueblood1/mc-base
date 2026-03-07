@@ -41,7 +41,7 @@ end
 -- File manifest - maps local filename to GitHub path
 Updater.MANIFEST = {
     -- Version
-    ["VERSION"] = "VERSION",
+    ["BUILD_NUMBER"] = "BUILD_NUMBER",
     
     -- Libraries
     ["network.lua"] = "libs/network.lua",
@@ -57,7 +57,10 @@ Updater.MANIFEST = {
     -- Turtles
     ["pig_feeder.lua"] = "turtles/pig_feeder.lua",
     ["cow_feeder.lua"] = "turtles/cow_feeder.lua",
-    ["tree_farmer.lua"] = "turtles/tree_farmer.lua"
+    ["tree_farmer.lua"] = "turtles/tree_farmer.lua",
+    
+    -- Debug
+    ["test_version.lua"] = "test_version.lua"
 }
 
 -- Download a file from GitHub
@@ -126,16 +129,16 @@ function Updater.updateFile(localFilename)
     return Updater.download(githubPath, localFilename)
 end
 
--- Check if update is needed by comparing VERSION file
+-- Check if update is needed by comparing BUILD_NUMBER file
 function Updater.checkVersion()
-    -- Download VERSION file
-    local success, message = Updater.download("VERSION", "VERSION")
+    -- Download BUILD_NUMBER file
+    local success, message = Updater.download("BUILD_NUMBER", "BUILD_NUMBER")
     
     if not success and message ~= "File unchanged" then
         return false, "Failed to check version: " .. message
     end
     
-    -- If VERSION file changed, update is needed
+    -- If BUILD_NUMBER file changed, update is needed
     if success then
         return true, "New version available"
     end
@@ -164,15 +167,15 @@ end
 function Updater.updateLocal()
     -- Get current version before update
     local currentVersion = "unknown"
-    if fs.exists("VERSION") then
-        local file = fs.open("VERSION", "r")
+    if fs.exists("BUILD_NUMBER") then
+        local file = fs.open("BUILD_NUMBER", "r")
         local content = file.readAll()
         file.close()
         content = content:match("^%s*(.-)%s*$")
         currentVersion = tonumber(content) or "unknown"
     end
     
-    -- First check if VERSION changed
+    -- First check if BUILD_NUMBER changed
     local needsUpdate, message = Updater.checkVersion()
     
     if not needsUpdate then
@@ -190,8 +193,8 @@ function Updater.updateLocal()
     
     -- Get new version
     local newVersion = "unknown"
-    if fs.exists("VERSION") then
-        local file = fs.open("VERSION", "r")
+    if fs.exists("BUILD_NUMBER") then
+        local file = fs.open("BUILD_NUMBER", "r")
         local content = file.readAll()
         file.close()
         content = content:match("^%s*(.-)%s*$")
@@ -212,7 +215,7 @@ function Updater.updateLocal()
     local updated = 0
     
     for localFilename, githubPath in pairs(Updater.MANIFEST) do
-        if fs.exists(localFilename) and localFilename ~= "VERSION" then
+        if fs.exists(localFilename) and localFilename ~= "BUILD_NUMBER" then
             local success, msg = Updater.download(githubPath, localFilename)
             results[localFilename] = {success = success, message = msg}
             if success then
