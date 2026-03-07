@@ -242,6 +242,7 @@ local function navigateGrid()
     if state.phase == "idle" or state.phase == "descending" then
         state.phase = "descending"
         saveState()
+        sendTelemetry()  -- Send telemetry to show we're starting work
         
         while state.depth < 3 do
             if not turtle.down() then

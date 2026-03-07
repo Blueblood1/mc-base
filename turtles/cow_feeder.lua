@@ -246,6 +246,7 @@ local function navigateGrid()
     if state.phase == "idle" or state.phase == "ascending_start" then
         state.phase = "ascending_start"
         saveState()
+        sendTelemetry()  -- Send telemetry to show we're starting work
         
         while state.height < 2 do
             if not turtle.up() then
