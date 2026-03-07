@@ -111,7 +111,7 @@ function Updater.updateAll()
     return results
 end
 
--- Update only the files that exist locally
+-- Update only the files that exist locally (for auto-update)
 function Updater.updateLocal()
     local results = {}
     
@@ -128,6 +128,12 @@ function Updater.updateLocal()
     end
     
     return results
+end
+
+-- Install all files (downloads everything, even if missing)
+function Updater.installAll()
+    print("Installing all files from manifest...")
+    return Updater.updateAll()
 end
 
 return Updater

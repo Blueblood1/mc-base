@@ -1,43 +1,34 @@
 -- Central Command Computer v2
 -- Monitors and controls all turtles with touch screen support
 
--- Download missing libraries if needed
-local function ensureLibraries()
-    local Updater = require("updater")
-    local missingLibs = {}
-    
-    if not fs.exists("ui.lua") then
-        table.insert(missingLibs, "ui.lua")
-    end
-    if not fs.exists("state.lua") then
-        table.insert(missingLibs, "state.lua")
-    end
-    if not fs.exists("version.lua") then
-        table.insert(missingLibs, "version.lua")
-    end
-    if not fs.exists("VERSION") then
-        table.insert(missingLibs, "VERSION")
-    end
-    
-    if #missingLibs > 0 then
-        print("Downloading missing libraries...")
-        for _, lib in ipairs(missingLibs) do
-            print("Downloading " .. lib .. "...")
-            Updater.updateFile(lib)
-        end
-        print("Libraries downloaded. Rebooting...")
-        sleep(2)
-        os.reboot()
-    end
-end
-
-ensureLibraries()
-
 local Network = require("network")
 local Updater = require("updater")
-local UI = require("ui")
-local State = require("state")
-local Version = require("version")
+
+-- Try to load optional libraries (may not exist on first run)
+local UI = nil
+local State = nil
+local Version = nil
+
+local success, module = pcall(require, "ui")
+if success then UI = module end
+
+success, module = pcall(require, "state")
+if success then State = module end
+
+success, module = pcall(require, "version")
+if success then Version = module end
+
+-- If critical libraries are missing, show error and exit
+if not UI or not State then
+    print("ERROR: Missing required libraries!")
+    print("Please run the updater to download:")
+    if not UI then print("  - ui.lua") end
+    if not State then print("  - state.lua") end
+    print("")
+    print("Run: shell.run('updater')")
+    print("Or use the installer")
+    return
+end
 
 -- Configuration
 local HOSTNAME = "central"
@@ -87,7 +78,8 @@ local function updateDisplay()
     -- Header
     screen:setTextColor(colors.yellow)
     screen:print("=== CENTRAL COMMAND SYSTEM ===")
-    screen:print("Computer ID: " .. os.getComputerID() .. " | Build: " .. Version.get())
+    local buildInfo = Version and (" | Build: " .. Version.get()) or ""
+    screen:print("Computer ID: " .. os.getComputerID() .. buildInfo)
     screen:print("Time: " .. os.date("%H:%M:%S"))
     screen:print("")
     
@@ -308,8 +300,14 @@ local function main()
     term.clear()
     term.setCursorPos(1, 1)
     
-    -- Print version banner
-    Version.printBanner("Central Command System v2")
+    -- Print version banner if available
+    if Version then
+        Version.printBanner("Central Command System v2")
+    else
+        print("=================================")
+        print("Central Command System v2")
+        print("=================================")
+    end
     print("")
     
     -- Load state
@@ -318,7 +316,7 @@ local function main()
     
     -- Check for updates
     print("Checking for updates...")
-    local results = Updater.updateLocal()
+    local results = Updater.updateAll()
     local updated = false
     for filename, result in pairs(results) do
         if result.success then
