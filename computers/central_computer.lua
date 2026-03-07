@@ -437,10 +437,12 @@ local function main()
     -- Main loop with parallel processing
     local function messageListener()
         while true do
-            local event = os.pullEvent("rednet_message")
-            local senderId, msgType, data = Network.receive(0)
-            if senderId then
-                handleMessage(senderId, msgType, data)
+            local event, param1, param2, param3 = os.pullEvent()
+            if event == "rednet_message" then
+                local senderId, msgType, data = Network.receive(0)
+                if senderId then
+                    handleMessage(senderId, msgType, data)
+                end
             end
         end
     end

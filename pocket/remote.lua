@@ -27,7 +27,7 @@ local function sendCommand(command, data)
         centralId = Network.lookup(CENTRAL_HOSTNAME)
     end
     
-    if centralId then
+    if centralId ~= nil then
         data = data or {}
         data.command = command
         Network.send(centralId, Network.MSG_TYPES.COMMAND, data)
@@ -48,9 +48,11 @@ end
 local function requestTelemetry()
     if sendCommand("report_status") then
         -- Successfully sent
+        return true
     else
         -- Try to reconnect
         centralId = Network.lookup(CENTRAL_HOSTNAME)
+        return false
     end
 end
 
@@ -68,7 +70,11 @@ local function drawControlTab()
     
     -- Show connection status
     screen:setTextColor(colors.gray)
-    screen:print("Central: " .. (centralId and tostring(centralId) or "NONE"))
+    if centralId then
+        screen:print("Central: " .. tostring(centralId))
+    else
+        screen:print("Central: NONE")
+    end
     
     if not centralId then
         screen:setTextColor(colors.red)
