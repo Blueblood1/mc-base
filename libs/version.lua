@@ -19,6 +19,8 @@ function Version.get()
     local content = file.readAll()
     file.close()
     
+    -- Trim whitespace and convert to number
+    content = content:match("^%s*(.-)%s*$")
     Version.BUILD_NUMBER = tonumber(content)
     return Version.BUILD_NUMBER or "unknown"
 end
