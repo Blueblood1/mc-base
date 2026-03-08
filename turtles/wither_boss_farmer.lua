@@ -446,8 +446,9 @@ local function buildWitherInCell(cellNumber)
         
         sleep(2)
         
-        -- Currently facing LEFT, need to face back (turn right once)
-        Version.log("Turning to face exit...")
+        -- Currently facing BACK (toward entrance), need to face FORWARD (turn 180)
+        Version.log("Turning 180 to face cell 2...")
+        turtle.turnRight()
         turtle.turnRight()
         
         -- Move forward 4 blocks (into cell 2)
@@ -461,14 +462,13 @@ local function buildWitherInCell(cellNumber)
         
     elseif cellNumber == 2 or cellNumber == 3 then
         -- Cells 2 and 3: Complex exit with turn to side
-        -- Currently facing LEFT after building
-        -- Need to turn 180 to face the side exit
-        Version.log("Cell " .. cellNumber .. " exit: turning to face side exit")
+        -- Currently facing BACK (toward entrance) after building
+        -- Need to turn LEFT to face the side exit
+        Version.log("Cell " .. cellNumber .. " exit: turning left to face side exit")
         
-        -- Turn 180 degrees to face side door
-        Version.log("Turning 180 to face side exit...")
-        turtle.turnRight()
-        turtle.turnRight()
+        -- Turn left to face side door
+        Version.log("Turning left to face side exit...")
+        turtle.turnLeft()
         
         -- Open next door
         Version.log("Requesting door " .. (cellNumber + 1) .. " open...")
