@@ -523,16 +523,9 @@ local function buildWitherInCell(cellNumber)
         turtle.turnRight()
         
     elseif cellNumber == 3 then
-        -- Cell 3: Exit straight through to cell 4 (like cell 1)
+        -- Cell 3: Exit straight through to cell 4
+        -- Door 4 was already opened during cell 2's exit, so don't open it again
         Version.log("Cell 3 exit: straight through to cell 4")
-        
-        -- Request door 4 open
-        Version.log("Requesting door 4 open...")
-        if not openDoor(4) then
-            return false
-        end
-        
-        sleep(2)
         
         -- Currently facing BACK (toward entrance), need to face FORWARD (turn 180)
         Version.log("Turning 180 to face cell 4...")
