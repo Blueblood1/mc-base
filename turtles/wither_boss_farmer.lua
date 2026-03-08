@@ -267,7 +267,10 @@ local function buildWitherInCell(cellNumber)
     
     Version.log("Checking if path is clear...")
     -- Check if path is clear
-    if turtle.detect() then
+    local blockDetected = turtle.detect()
+    Version.log("Block detected: " .. tostring(blockDetected))
+    
+    if blockDetected then
         sendAlert("Door " .. cellNumber .. " didn't open! Block detected in front")
         return false
     end
