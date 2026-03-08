@@ -215,6 +215,20 @@ local function install(args)
         print("FAILED: state.lua")
     end
     
+    if download("libs/checkpoint.lua", "checkpoint.lua") then
+        success = success + 1
+    else
+        failed = failed + 1
+        print("FAILED: checkpoint.lua")
+    end
+    
+    if download("libs/executor.lua", "executor.lua") then
+        success = success + 1
+    else
+        failed = failed + 1
+        print("FAILED: executor.lua")
+    end
+    
     if download("libs/ui.lua", "ui.lua") then
         success = success + 1
     else

@@ -50,6 +50,8 @@ Updater.MANIFEST = {
     ["updater.lua"] = "libs/updater.lua",
     ["ui.lua"] = "libs/ui.lua",
     ["state.lua"] = "libs/state.lua",
+    ["checkpoint.lua"] = "libs/checkpoint.lua",
+    ["executor.lua"] = "libs/executor.lua",
     ["version.lua"] = "libs/version.lua",
     
     -- Central Computer
@@ -66,7 +68,8 @@ Updater.MANIFEST = {
     ["pig_feeder.lua"] = "turtles/pig_feeder.lua",
     ["cow_feeder.lua"] = "turtles/cow_feeder.lua",
     ["tree_farmer.lua"] = "turtles/tree_farmer.lua",
-    ["wither_boss_farmer.lua"] = "turtles/wither_boss_farmer.lua"
+    ["wither_boss_farmer.lua"] = "turtles/wither_boss_farmer.lua",
+    ["wither_boss_farmer_v2.lua"] = "turtles/wither_boss_farmer_v2.lua"
 }
 
 -- Download a file from GitHub
