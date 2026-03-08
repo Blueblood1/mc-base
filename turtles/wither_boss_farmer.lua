@@ -183,20 +183,24 @@ end
 
 -- Request door to close (no response wait - fire and forget for now)
 local function closeDoor(cellNumber)
+    Version.log("closeDoor() called for cell " .. cellNumber)
+    
     if not sharedState.farmComputerId then
         sendAlert("No farm computer ID!")
         return false
     end
     
-    Version.log("Requesting door " .. cellNumber .. " close...")
+    Version.log("Sending close_door command...")
     Network.send(sharedState.farmComputerId, Network.MSG_TYPES.COMMAND, {
         command = "close_door",
         cell = cellNumber
     })
     
+    Version.log("Sleeping 1 second...")
     -- Give it time to process
     sleep(1)
     
+    Version.log("closeDoor() returning true")
     return true
 end
 
