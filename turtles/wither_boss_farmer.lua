@@ -162,7 +162,7 @@ local function findFarmComputer()
     return true
 end
 
--- Request door to open
+-- Request door to open (no response wait - fire and forget for now)
 local function openDoor(cellNumber)
     if not sharedState.farmComputerId then
         sendAlert("No farm computer ID!")
@@ -175,24 +175,13 @@ local function openDoor(cellNumber)
         cell = cellNumber
     })
     
-    -- Wait for response
-    local senderId, msgType, data = Network.receive(5)
+    -- Give it time to process
+    sleep(1)
     
-    if senderId and msgType == Network.MSG_TYPES.RESPONSE then
-        if data.success then
-            Version.log("Door " .. cellNumber .. " opened")
-            return true
-        else
-            sendAlert("Failed to open door " .. cellNumber .. ": " .. (data.error or "unknown"))
-            return false
-        end
-    else
-        sendAlert("Timeout waiting for door " .. cellNumber .. " response")
-        return false
-    end
+    return true
 end
 
--- Request door to close
+-- Request door to close (no response wait - fire and forget for now)
 local function closeDoor(cellNumber)
     if not sharedState.farmComputerId then
         sendAlert("No farm computer ID!")
@@ -205,21 +194,10 @@ local function closeDoor(cellNumber)
         cell = cellNumber
     })
     
-    -- Wait for response
-    local senderId, msgType, data = Network.receive(5)
+    -- Give it time to process
+    sleep(1)
     
-    if senderId and msgType == Network.MSG_TYPES.RESPONSE then
-        if data.success then
-            Version.log("Door " .. cellNumber .. " closed")
-            return true
-        else
-            sendAlert("Failed to close door " .. cellNumber .. ": " .. (data.error or "unknown"))
-            return false
-        end
-    else
-        sendAlert("Timeout waiting for door " .. cellNumber .. " response")
-        return false
-    end
+    return true
 end
 
 -- Place soul sand from inventory
