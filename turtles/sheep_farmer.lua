@@ -87,10 +87,12 @@ local function useShearsDown(step, context)
     return true
 end
 
--- Custom action: Place wheat downwards
+-- Custom action: Place wheat downwards (only if we have wheat)
 local function placeWheatDown(step, context)
-    turtle.select(WHEAT_SLOT)
-    turtle.placeDown()
+    if context.hasWheat then
+        turtle.select(WHEAT_SLOT)
+        turtle.placeDown()
+    end
     return true
 end
 
@@ -138,11 +140,15 @@ local function buildSteps()
     add({action = "suck", side = "front"})
     add({action = "turn", direction = "right"})
     
-    -- Validate we have wheat
-    add({action = "function", log = "Validating wheat...", func = function(ctx)
+    -- Check if we have wheat (optional - can still shear without wheat)
+    add({action = "function", func = function(ctx)
         local wheatCount = turtle.getItemCount(WHEAT_SLOT)
         if wheatCount == 0 then
-            return false, "No wheat available"
+            ctx.hasWheat = false
+            print("No wheat available - will only shear sheep")
+        else
+            ctx.hasWheat = true
+            print("Wheat loaded - will shear and breed sheep")
         end
         return true
     end})
