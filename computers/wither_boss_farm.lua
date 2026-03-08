@@ -9,7 +9,7 @@ local Updater = require("updater")
 local Version = require("version")
 
 -- Configuration
-local COMPUTER_NAME = "Wither Boss Farm"
+local COMPUTER_NAME = "wither_boss_farm"  -- Must match UNPAUSABLE_WORKERS in central
 local TELEMETRY_INTERVAL = 10
 local NUM_CELLS = 6  -- Start with 6, expandable to 16
 
@@ -99,7 +99,7 @@ sendTelemetry = function()
     end
     
     local telemetryData = {
-        name = os.getComputerLabel() or (COMPUTER_NAME .. " #" .. os.getComputerID()),
+        name = COMPUTER_NAME,  -- Use consistent name for matching
         status = sharedState.operatingMode == "running" and "working" or "idle",
         task = {
             phase = doorState.openDoor and ("door_" .. doorState.openDoor .. "_open") or "all_doors_closed",
@@ -286,10 +286,8 @@ local function main()
     end
     Version.log("Network initialized")
     
-    -- Set computer label
-    if not os.getComputerLabel() then
-        os.setComputerLabel(COMPUTER_NAME .. "_" .. os.getComputerID())
-    end
+    -- Set computer label (force correct name)
+    os.setComputerLabel(COMPUTER_NAME .. "_" .. os.getComputerID())
     
     -- Register DNS name so turtle can find us
     Network.host("wither_boss_farm")
