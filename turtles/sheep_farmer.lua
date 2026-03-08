@@ -123,18 +123,18 @@ local function buildSteps()
     
     -- Load shears from chest above wheat chest if needed
     add({action = "turn", direction = "left"})
+    add({action = "move", direction = "up"})  -- Ascend to reach upper chest
     add({action = "function", func = function(ctx)
         if ctx.needShears then
             turtle.select(SHEARS_SLOT)
-            turtle.suckUp(1)  -- Only take 1 pair of shears from chest above
+            turtle.suck(1)  -- Take 1 pair of shears from chest in front
         end
         return true
     end})
-    add({action = "turn", direction = "right"})
+    add({action = "move", direction = "down"})  -- Descend back to starting level
     
     -- ===== LOAD WHEAT =====
-    add({action = "turn", direction = "left", log = "Loading wheat..."})
-    add({action = "select", slot = WHEAT_SLOT})
+    add({action = "select", slot = WHEAT_SLOT, log = "Loading wheat..."})
     add({action = "suck", side = "front"})
     add({action = "turn", direction = "right"})
     
@@ -227,24 +227,23 @@ local function buildSteps()
     add({action = "move", direction = "down"})
     
     -- ===== DEPOSIT WOOL =====
-    add({action = "function", log = "Depositing wool...", func = function(ctx)
-        -- Turn right to face the chest above fuel chest
-        turtle.turnRight()
-        
-        -- Deposit all items except fuel, wheat, and shears
+    add({action = "turn", direction = "right", log = "Depositing wool..."})
+    add({action = "move", direction = "up"})  -- Ascend to reach upper chest
+    
+    -- Deposit all items except fuel, wheat, and shears
+    add({action = "function", func = function(ctx)
         for slot = 4, 16 do
             turtle.select(slot)
             local itemDetail = turtle.getItemDetail()
             if itemDetail then
-                turtle.dropUp()  -- Drop into chest above fuel chest
+                turtle.drop()  -- Drop into chest in front
             end
         end
-        
-        -- Turn back to original orientation
-        turtle.turnLeft()
-        
         return true
     end})
+    
+    add({action = "move", direction = "down"})  -- Descend back to starting level
+    add({action = "turn", direction = "left"})  -- Turn back to original orientation
     
     return steps
 end
