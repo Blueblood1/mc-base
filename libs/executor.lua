@@ -33,9 +33,13 @@ end
 -- steps: array of step definitions
 -- context: shared context object (state, IDs, etc.)
 -- checkpointFile: filename for checkpoint storage
-function Executor.run(steps, context, checkpointFile)
+-- checkpointSteps: array of step numbers to checkpoint at (optional, defaults to all)
+function Executor.run(steps, context, checkpointFile, checkpointSteps)
     -- Initialize checkpoint system
     Checkpoint.init(checkpointFile or "executor_checkpoint.txt")
+    
+    -- Initialize orientation tracking (0 = forward, 1 = right, 2 = back, 3 = left)
+    context.facing = 0
     
     -- Load checkpoint or start from beginning
     local startStep = 1
@@ -43,7 +47,9 @@ function Executor.run(steps, context, checkpointFile)
     
     if checkpoint and checkpoint.step then
         startStep = checkpoint.step
+        context.facing = checkpoint.facing or 0
         print("Resuming from step " .. startStep .. " of " .. #steps)
+        print("Facing: " .. context.facing .. " (0=forward, 1=right, 2=back, 3=left)")
     else
         print("Starting from beginning (" .. #steps .. " steps)")
     end
@@ -81,13 +87,15 @@ function Executor.run(steps, context, checkpointFile)
             print("Error: " .. tostring(err))
             
             -- Save checkpoint at failed step for manual recovery
-            Checkpoint.save({step = i, error = err})
+            Checkpoint.save({step = i, error = err, facing = context.facing})
             
             return false, "Step " .. i .. " failed: " .. tostring(err)
         end
         
-        -- Save checkpoint for next step
-        Checkpoint.save({step = i + 1})
+        -- Save checkpoint only at designated checkpoint steps (or all if not specified)
+        if not checkpointSteps or checkpointSteps[i] then
+            Checkpoint.save({step = i + 1, facing = context.facing})
+        end
     end
     
     -- All steps completed successfully
@@ -135,8 +143,12 @@ actionHandlers["turn"] = function(step, context)
     for i = 1, count do
         if direction == "right" then
             turtle.turnRight()
+            -- Update facing: 0=forward, 1=right, 2=back, 3=left
+            context.facing = (context.facing + 1) % 4
         elseif direction == "left" then
             turtle.turnLeft()
+            context.facing = (context.facing - 1) % 4
+            if context.facing < 0 then context.facing = context.facing + 4 end
         else
             return false, "Invalid turn direction: " .. direction
         end
