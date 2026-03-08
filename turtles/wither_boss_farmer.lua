@@ -4,17 +4,81 @@
 local Executor = require("executor")
 local Network = require("network")
 local Version = require("version")
+local Worker = require("worker")
 
 -- Configuration
 local TURTLE_NAME = "Wither Boss Farmer"
 local FUEL_SLOT = 1
 local SOUL_SAND_SLOT = 2
 local SKULL_SLOT = 3
+local TELEMETRY_INTERVAL = 30
 
 -- Shared context
 local context = {
     farmComputerId = nil
 }
+
+-- Shared state for command listener
+local sharedState = {
+    centralId = nil,
+    centralConnected = false,
+    operatingMode = "running",
+    stopRequested = false
+}
+
+-- Status tracking
+local status = {
+    withersBuilt = 0,
+    cyclesCompleted = 0,
+    lastError = nil
+}
+
+-- Forward declarations
+local sendAlert
+local sendTelemetry
+
+-- Send alert to central computer
+sendAlert = function(message, level)
+    if not sharedState.centralId then
+        sharedState.centralId = Network.lookup("central")
+    end
+    
+    if sharedState.centralId then
+        Network.send(sharedState.centralId, Network.MSG_TYPES.ALERT, {
+            worker = TURTLE_NAME,
+            message = message,
+            level = level or "info",
+            timestamp = os.epoch("utc")
+        })
+    end
+end
+
+-- Send telemetry to central computer
+sendTelemetry = function()
+    if not sharedState.centralId then
+        sharedState.centralId = Network.lookup("central")
+    end
+    
+    local fuel = turtle.getFuelLevel()
+    local fuelLimit = turtle.getFuelLimit()
+    local fuelPercent = 0
+    if fuelLimit > 0 then
+        fuelPercent = math.floor((fuel / fuelLimit) * 100)
+    end
+    
+    if sharedState.centralId then
+        Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, {
+            worker = TURTLE_NAME,
+            mode = sharedState.operatingMode,
+            fuel = fuel,
+            fuelPercent = fuelPercent,
+            withersBuilt = status.withersBuilt,
+            cyclesCompleted = status.cyclesCompleted,
+            lastError = status.lastError,
+            timestamp = os.epoch("utc")
+        })
+    end
+end
 
 -- Build the step sequence with atomic actions only
 local function buildSteps()
@@ -218,8 +282,6 @@ local function buildSteps()
     add({action = "move", direction = "forward"})
     addTurns("right", 2)
     
-    add({action = "wait", duration = 600, log = "Cycle complete! Waiting 10 minutes..."})
-    
     return steps
 end
 
@@ -233,30 +295,78 @@ local function main()
         return
     end
     
+    -- Wait for connection to central
+    Worker.waitForCentralConnection(sharedState, TURTLE_NAME)
+    
     -- Find farm computer
     print("Looking for wither_boss_farm...")
     context.farmComputerId = Network.lookup("wither_boss_farm")
     
     if not context.farmComputerId then
         print("ERROR: Could not find wither_boss_farm computer!")
+        sendAlert("Could not find wither_boss_farm computer", "error")
         return
     end
     
     print("Found farm computer: " .. context.farmComputerId)
     
-    -- Build step sequence
-    local steps = buildSteps()
-    print("Generated " .. #steps .. " atomic steps")
+    -- Send initial telemetry
+    sendTelemetry()
     
-    -- Execute with automatic checkpointing
-    local success, err = Executor.run(steps, context, "wither_farm_checkpoint.txt")
+    -- Create command listener
+    local commandListener = Worker.createCommandListener(sharedState, {
+        sendAlert = sendAlert,
+        sendTelemetry = sendTelemetry
+    })
     
-    if not success then
-        print("ERROR: " .. tostring(err))
-        print("Checkpoint saved. Restart to resume.")
-    else
-        print("All withers built successfully!")
+    -- Main loop function
+    local function mainLoop()
+        local lastTelemetry = os.epoch("utc")
+        
+        while not sharedState.stopRequested do
+            -- Check if paused
+            if sharedState.operatingMode == "paused" then
+                print("Paused - waiting for resume...")
+                sendTelemetry()
+                sleep(5)
+            else
+                -- Build step sequence
+                local steps = buildSteps()
+                print("Starting cycle with " .. #steps .. " atomic steps")
+                
+                -- Execute with automatic checkpointing
+                local success, err = Executor.run(steps, context, "wither_farm_checkpoint.txt")
+                
+                if success then
+                    status.withersBuilt = status.withersBuilt + 4
+                    status.cyclesCompleted = status.cyclesCompleted + 1
+                    status.lastError = nil
+                    print("Cycle complete! Total withers: " .. status.withersBuilt)
+                    sendTelemetry()
+                else
+                    status.lastError = tostring(err)
+                    print("ERROR: " .. tostring(err))
+                    sendAlert("Cycle failed: " .. tostring(err), "error")
+                    sendTelemetry()
+                    print("Checkpoint saved. Restart to resume.")
+                    break
+                end
+            end
+            
+            -- Send periodic telemetry
+            local now = os.epoch("utc")
+            if (now - lastTelemetry) > (TELEMETRY_INTERVAL * 1000) then
+                sendTelemetry()
+                lastTelemetry = now
+            end
+        end
+        
+        print("Stopped by central computer")
+        sendTelemetry()
     end
+    
+    -- Run main loop and command listener in parallel
+    parallel.waitForAll(mainLoop, commandListener)
 end
 
 -- Run the program

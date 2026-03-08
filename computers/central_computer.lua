@@ -35,6 +35,11 @@ local HOSTNAME = "central"
 local TELEMETRY_INTERVAL = 30
 local DISPLAY_REFRESH = 2
 
+-- Workers that cannot be paused (critical infrastructure)
+local UNPAUSABLE_WORKERS = {
+    ["wither_boss_farm"] = true  -- Door controller must always be running
+}
+
 -- State
 local screen = nil
 local turtles = {}
@@ -43,8 +48,33 @@ local stats = {
     totalTurtles = 0,
     activeTurtles = 0,
     pausedTurtles = 0,
-    alerts = {}
+    alerts = {},
+    criticalWorkersMissing = {}
 }
+
+-- Check for critical workers
+local function checkCriticalWorkers()
+    stats.criticalWorkersMissing = {}
+    
+    for workerName, _ in pairs(UNPAUSABLE_WORKERS) do
+        local found = false
+        for id, turtle in pairs(turtles) do
+            if turtle.name == workerName then
+                found = true
+                -- Check if it's been too long since last update (offline)
+                local timeSinceUpdate = os.epoch("utc") - turtle.lastUpdate
+                if timeSinceUpdate > 60000 then  -- 60 seconds
+                    table.insert(stats.criticalWorkersMissing, workerName .. " (OFFLINE)")
+                end
+                break
+            end
+        end
+        
+        if not found then
+            table.insert(stats.criticalWorkersMissing, workerName .. " (NOT FOUND)")
+        end
+    end
+end
 
 -- Send command to set turtle mode
 local function setTurtleMode(turtleId, mode)
@@ -60,6 +90,14 @@ end
 
 -- Toggle turtle mode
 local function toggleTurtleMode(turtleId)
+    -- Check if this worker can be paused
+    local turtleName = turtles[turtleId] and turtles[turtleId].name or ("Turtle " .. turtleId)
+    
+    if UNPAUSABLE_WORKERS[turtleName] then
+        table.insert(stats.alerts, os.date("%H:%M:%S") .. " - Cannot pause " .. turtleName .. " (critical)")
+        return
+    end
+    
     local newMode = State.toggleTurtleMode(centralState, turtleId)
     
     Network.send(turtleId, Network.MSG_TYPES.COMMAND, {
@@ -67,12 +105,14 @@ local function toggleTurtleMode(turtleId)
         mode = newMode
     })
     
-    local turtleName = turtles[turtleId] and turtles[turtleId].name or ("Turtle " .. turtleId)
     table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. " " .. newMode)
 end
 
 -- Update display
 local function updateDisplay()
+    -- Check for critical workers
+    checkCriticalWorkers()
+    
     screen:clear()
     screen:clearButtons()
     
@@ -87,6 +127,13 @@ local function updateDisplay()
     -- Stats
     screen:setTextColor(colors.cyan)
     screen:print("Connected: " .. stats.totalTurtles .. " | Active: " .. stats.activeTurtles .. " | Paused: " .. stats.pausedTurtles)
+    
+    -- Show critical worker errors
+    if #stats.criticalWorkersMissing > 0 then
+        screen:setTextColor(colors.red)
+        screen:print("CRITICAL: " .. table.concat(stats.criticalWorkersMissing, ", "))
+    end
+    
     screen:print("")
     screen:setTextColor(colors.white)
     
@@ -101,6 +148,7 @@ local function updateDisplay()
         
         local mode = State.getTurtleMode(centralState, id)
         local statusColor = colors.green
+        local isUnpausable = UNPAUSABLE_WORKERS[turtle.name]
         
         if mode == "paused" then
             statusColor = colors.gray
@@ -117,19 +165,35 @@ local function updateDisplay()
         screen:setTextColor(colors.white)
         screen:write(turtle.name)
         
+        -- Show if unpausable
+        if isUnpausable then
+            screen:setTextColor(colors.orange)
+            screen:write(" [CRITICAL]")
+        end
+        
         -- Status indicator
         screen:setCursorPos(25, currentY)
         screen:setTextColor(statusColor)
         screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
         
-        -- Start/Stop button
-        local buttonColor = mode == "paused" and colors.green or colors.red
-        local buttonText = mode == "paused" and "START" or "STOP"
-        local button = UI.Button:new(screenWidth - 8, currentY, 7, 1, buttonText, function()
-            toggleTurtleMode(id)
-            updateDisplay()
-        end, buttonColor, colors.white)
-        screen:addButton(button)
+        -- Start/Stop button (disabled for unpausable workers)
+        if isUnpausable then
+            -- Show disabled button
+            screen:setCursorPos(screenWidth - 8, currentY)
+            screen:setTextColor(colors.gray)
+            screen:setBackgroundColor(colors.lightGray)
+            screen:write(" LOCKED ")
+            screen:setBackgroundColor(colors.black)
+        else
+            -- Normal start/stop button
+            local buttonColor = mode == "paused" and colors.green or colors.red
+            local buttonText = mode == "paused" and "START" or "STOP"
+            local button = UI.Button:new(screenWidth - 8, currentY, 7, 1, buttonText, function()
+                toggleTurtleMode(id)
+                updateDisplay()
+            end, buttonColor, colors.white)
+            screen:addButton(button)
+        end
         
         currentY = currentY + 1
         
