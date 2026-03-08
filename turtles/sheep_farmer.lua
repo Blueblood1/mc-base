@@ -118,10 +118,10 @@ local function buildSteps()
     add({action = "move", direction = "up", log = "Ascending to sheep pen..."})
     add({action = "move", direction = "up"})
     
-    -- Move forward once to enter the grid
+    -- Move forward once to be above the first sheep position
     add({action = "move", direction = "forward"})
     
-    -- Process 14 rows (11 blocks wide each)
+    -- Process 14 rows
     for row = 1, 14 do
         local isOddRow = (row % 2 == 1)
         
@@ -131,26 +131,30 @@ local function buildSteps()
             add({action = "function", log = "Row " .. row .. "...", func = function() return true end})
         end
         
-        -- Each row is 11 blocks wide (place wheat at each position, move forward 10 times)
-        for i = 1, 11 do
-            -- Place wheat down
+        -- For each position in the row, place wheat down then move forward
+        -- Row 1: 11 forward moves (12 positions total including start)
+        -- Rows 2-14: 10 forward moves (11 positions total)
+        local forwardMoves = (row == 1) and 11 or 10
+        
+        for i = 1, forwardMoves do
+            -- Place wheat down at current position
             add({action = "function", func = placeWheatDown})
-            
-            -- Move forward (except on last position of row)
-            if i < 11 then
-                add({action = "move", direction = "forward"})
-            end
+            -- Move forward
+            add({action = "move", direction = "forward"})
         end
         
-        -- At end of row, navigate to next row (except on last row)
+        -- Place wheat at the final position of this row
+        add({action = "function", func = placeWheatDown})
+        
+        -- At end of row, move to next row (except on last row)
         if row < 14 then
             if isOddRow then
-                -- Turn left, move forward, turn left (now facing back)
+                -- Odd row: turn left, move forward to next row, turn left to face back
                 add({action = "turn", direction = "left"})
                 add({action = "move", direction = "forward"})
                 add({action = "turn", direction = "left"})
             else
-                -- Turn right, move forward, turn right (now facing back)
+                -- Even row: turn right, move forward to next row, turn right to face back  
                 add({action = "turn", direction = "right"})
                 add({action = "move", direction = "forward"})
                 add({action = "turn", direction = "right"})
