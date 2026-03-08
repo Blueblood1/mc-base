@@ -171,10 +171,12 @@ local function updateDisplay()
             screen:write(" [CRITICAL]")
         end
         
-        -- Status indicator
-        screen:setCursorPos(25, currentY)
-        screen:setTextColor(statusColor)
-        screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
+        -- Status indicator (skip for unpausable workers - they're always running)
+        if not isUnpausable then
+            screen:setCursorPos(25, currentY)
+            screen:setTextColor(statusColor)
+            screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
+        end
         
         -- Start/Stop button (disabled for unpausable workers)
         if isUnpausable then
