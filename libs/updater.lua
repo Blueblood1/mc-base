@@ -68,7 +68,8 @@ Updater.MANIFEST = {
     ["pig_feeder.lua"] = "turtles/pig_feeder.lua",
     ["cow_feeder.lua"] = "turtles/cow_feeder.lua",
     ["tree_farmer.lua"] = "turtles/tree_farmer.lua",
-    ["wither_boss_farmer.lua"] = "turtles/wither_boss_farmer.lua"
+    ["wither_boss_farmer.lua"] = "turtles/wither_boss_farmer.lua",
+    ["sheep_farmer.lua"] = "turtles/sheep_farmer.lua"
 }
 
 -- Download a file from GitHub
