@@ -460,19 +460,19 @@ local function buildWitherInCell(cellNumber)
             end
         end
         
-    elseif cellNumber == 2 or cellNumber == 3 then
-        -- Cells 2 and 3: Complex exit with turn to side
+    elseif cellNumber == 2 then
+        -- Cell 2: Complex exit with turn to side
         -- Currently facing BACK (toward entrance) after building
         -- Need to turn LEFT to face the side exit
-        Version.log("Cell " .. cellNumber .. " exit: turning left to face side exit")
+        Version.log("Cell 2 exit: turning left to face side exit")
         
         -- Turn left to face side door
         Version.log("Turning left to face side exit...")
         turtle.turnLeft()
         
-        -- Open next door
-        Version.log("Requesting door " .. (cellNumber + 1) .. " open...")
-        if not openDoor(cellNumber + 1) then
+        -- Open door 3
+        Version.log("Requesting door 3 open...")
+        if not openDoor(3) then
             return false
         end
         
@@ -487,9 +487,9 @@ local function buildWitherInCell(cellNumber)
             end
         end
         
-        -- Open door after that
-        Version.log("Requesting door " .. (cellNumber + 2) .. " open...")
-        if not openDoor(cellNumber + 2) then
+        -- Open door 4
+        Version.log("Requesting door 4 open...")
+        if not openDoor(4) then
             return false
         end
         
@@ -521,6 +521,32 @@ local function buildWitherInCell(cellNumber)
         Version.log("Turning around...")
         turtle.turnRight()
         turtle.turnRight()
+        
+    elseif cellNumber == 3 then
+        -- Cell 3: Exit straight through to cell 4 (like cell 1)
+        Version.log("Cell 3 exit: straight through to cell 4")
+        
+        -- Request door 4 open
+        Version.log("Requesting door 4 open...")
+        if not openDoor(4) then
+            return false
+        end
+        
+        sleep(2)
+        
+        -- Currently facing BACK (toward entrance), need to face FORWARD (turn 180)
+        Version.log("Turning 180 to face cell 4...")
+        turtle.turnRight()
+        turtle.turnRight()
+        
+        -- Move forward 4 blocks (into cell 4)
+        Version.log("Moving to cell 4 (4 blocks)...")
+        for i = 1, 4 do
+            if not turtle.forward() then
+                sendAlert("Failed to move to cell 4 at step " .. i .. "/4")
+                return false
+            end
+        end
     end
     
     Version.log("Completed cell " .. cellNumber)
