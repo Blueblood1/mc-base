@@ -113,7 +113,7 @@ local function buildSteps()
         local itemDetail = turtle.getItemDetail()
         
         if not itemDetail or itemDetail.count == 0 then
-            -- No shears, need to get them from chest below
+            -- No shears, need to get them from chest above wheat chest (left side, up)
             ctx.needShears = true
         else
             ctx.needShears = false
@@ -121,14 +121,16 @@ local function buildSteps()
         return true
     end})
     
-    -- Load shears from chest below if needed
+    -- Load shears from chest above wheat chest if needed
+    add({action = "turn", direction = "left"})
     add({action = "function", func = function(ctx)
         if ctx.needShears then
             turtle.select(SHEARS_SLOT)
-            turtle.suckDown(1)  -- Only take 1 pair of shears
+            turtle.suckUp(1)  -- Only take 1 pair of shears from chest above
         end
         return true
     end})
+    add({action = "turn", direction = "right"})
     
     -- ===== LOAD WHEAT =====
     add({action = "turn", direction = "left", log = "Loading wheat..."})
@@ -223,6 +225,26 @@ local function buildSteps()
     -- Descend twice to return to starting position
     add({action = "move", direction = "down"})
     add({action = "move", direction = "down"})
+    
+    -- ===== DEPOSIT WOOL =====
+    add({action = "function", log = "Depositing wool...", func = function(ctx)
+        -- Turn right to face the chest above fuel chest
+        turtle.turnRight()
+        
+        -- Deposit all items except fuel, wheat, and shears
+        for slot = 4, 16 do
+            turtle.select(slot)
+            local itemDetail = turtle.getItemDetail()
+            if itemDetail then
+                turtle.dropUp()  -- Drop into chest above fuel chest
+            end
+        end
+        
+        -- Turn back to original orientation
+        turtle.turnLeft()
+        
+        return true
+    end})
     
     return steps
 end
