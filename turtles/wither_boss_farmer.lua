@@ -421,10 +421,13 @@ local function buildWitherInCell(cellNumber)
         return false
     end
     
+    -- At this point, turtle is facing LEFT (from last skull placement)
+    -- We need to orient correctly for each cell's exit
+    
     -- Exit strategy depends on which cell we're in
-    -- Cell 1: Front door (straight through)
-    -- Cell 2: Side door (turn right)
-    -- Cell 3: Side door (turn right)
+    -- Cell 1: Front door (straight through) - need to face back
+    -- Cell 2: Side door (turn to side)
+    -- Cell 3: Side door (turn to side)
     -- Cell 4: Last cell, no exit needed
     
     if cellNumber == 4 then
@@ -443,9 +446,8 @@ local function buildWitherInCell(cellNumber)
         
         sleep(2)
         
-        -- Turn 180
-        Version.log("Turning around...")
-        turtle.turnRight()
+        -- Currently facing LEFT, need to face back (turn right once)
+        Version.log("Turning to face exit...")
         turtle.turnRight()
         
         -- Move forward 4 blocks (into cell 2)
@@ -459,10 +461,13 @@ local function buildWitherInCell(cellNumber)
         
     elseif cellNumber == 2 or cellNumber == 3 then
         -- Cells 2 and 3: Complex exit with turn to side
-        Version.log("Cell " .. cellNumber .. " exit: turn right to side exit")
+        -- Currently facing LEFT after building
+        -- Need to turn 180 to face the side exit
+        Version.log("Cell " .. cellNumber .. " exit: turning to face side exit")
         
-        -- Turn right (facing side door)
-        Version.log("Turning right to face side exit...")
+        -- Turn 180 degrees to face side door
+        Version.log("Turning 180 to face side exit...")
+        turtle.turnRight()
         turtle.turnRight()
         
         -- Open next door
