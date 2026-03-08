@@ -175,10 +175,6 @@ local function openDoor(cellNumber)
         cell = cellNumber
     })
     
-    -- Give it time to process
-    Version.log("Waiting for door to open...")
-    sleep(1)
-    
     Version.log("openDoor() complete")
     return true
 end
@@ -197,10 +193,6 @@ local function closeDoor(cellNumber)
         command = "close_door",
         cell = cellNumber
     })
-    
-    Version.log("Sleeping 1 second...")
-    -- Give it time to process
-    sleep(1)
     
     Version.log("closeDoor() returning true")
     return true
@@ -262,10 +254,6 @@ local function buildWitherInCell(cellNumber)
             return false
         end
         
-        -- Give the door more time to fully open (pistons can be slow)
-        Version.log("Waiting for door mechanism...")
-        sleep(2)
-        
         -- Move forward 4 blocks into cell
         Version.log("Moving into cell (4 blocks)...")
         for i = 1, 4 do
@@ -274,14 +262,29 @@ local function buildWitherInCell(cellNumber)
                 return false
             end
         end
+        
+        -- Close door 1 behind us
+        Version.log("Closing door 1...")
+        if not closeDoor(1) then
+            return false
+        end
     end
     
     -- For cell 2+, we're already inside the cell from the previous iteration
-    
-    -- Request previous door close (if not first cell)
-    if cellNumber > 1 then
-        Version.log("Closing door " .. (cellNumber - 1) .. "...")
-        if not closeDoor(cellNumber - 1) then
+    -- Close the door we entered through
+    if cellNumber == 2 then
+        Version.log("Closing door 2...")
+        if not closeDoor(2) then
+            return false
+        end
+    elseif cellNumber == 3 then
+        Version.log("Closing door 4...")
+        if not closeDoor(4) then
+            return false
+        end
+    elseif cellNumber == 4 then
+        Version.log("Closing door 5...")
+        if not closeDoor(5) then
             return false
         end
     end
@@ -452,8 +455,6 @@ local function buildWitherInCell(cellNumber)
             return false
         end
         
-        sleep(2)
-        
         -- Move forward 2 blocks
         Version.log("Moving through exit (2 blocks)...")
         for i = 1, 2 do
@@ -512,8 +513,6 @@ local function buildWitherInCell(cellNumber)
             return false
         end
         
-        sleep(2)
-        
         -- Currently facing BACK (toward entrance), need to face FORWARD (turn 180)
         Version.log("Turning 180 to face cell 2...")
         turtle.turnRight()
@@ -544,8 +543,6 @@ local function buildWitherInCell(cellNumber)
             return false
         end
         
-        sleep(2)
-        
         -- Move 6 blocks forward
         Version.log("Moving 6 blocks forward...")
         for i = 1, 6 do
@@ -560,8 +557,6 @@ local function buildWitherInCell(cellNumber)
         if not openDoor(4) then
             return false
         end
-        
-        sleep(2)
         
         -- Move 5 blocks forward
         Version.log("Moving 5 blocks forward...")
@@ -599,8 +594,6 @@ local function buildWitherInCell(cellNumber)
         if not openDoor(5) then
             return false
         end
-        
-        sleep(2)
         
         -- Currently facing BACK (toward entrance), need to face FORWARD (turn 180)
         Version.log("Turning 180 to face cell 4...")
