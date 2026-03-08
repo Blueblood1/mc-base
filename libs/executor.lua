@@ -60,27 +60,25 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
         
         print("Resuming from step " .. startStep .. " of " .. #steps)
         
-        if context.useCompass then
-            -- With compass, check if turn completed
-            if checkpoint.facingBefore then
-                local currentFacing = compass.getFacing()
-                if currentFacing == checkpoint.facingBefore then
-                    -- Facing unchanged - turn didn't happen, will retry
-                    print("Turn didn't complete (facing " .. currentFacing .. "), retrying step " .. startStep)
-                else
-                    -- Facing changed - turn succeeded, skip to next step
-                    print("Turn completed (now facing " .. currentFacing .. "), continuing from step " .. (startStep + 1))
-                    startStep = startStep + 1
-                end
-            end
-        else
-            -- Without compass, use relative tracking
+        -- Restore relative facing if not using compass
+        if not context.useCompass then
             context.facing = checkpoint.facing or 0
             print("Facing: " .. context.facing .. " (0=forward, 1=right, 2=back, 3=left)")
         end
         
+        -- Check if this was a turn action that might not have completed (compass only)
+        if context.useCompass and checkpoint.facingBefore then
+            local currentFacing = compass.getFacing()
+            if currentFacing == checkpoint.facingBefore then
+                -- Facing unchanged - turn didn't happen, will retry
+                print("Turn didn't complete (facing " .. currentFacing .. "), retrying step " .. startStep)
+            else
+                -- Facing changed - turn succeeded, skip to next step
+                print("Turn completed (now facing " .. currentFacing .. "), continuing from step " .. (startStep + 1))
+                startStep = startStep + 1
+            end
         -- Check if this was a movement action that might not have completed
-        if checkpoint.fuelBefore then
+        elseif checkpoint.fuelBefore then
             local currentFuel = turtle.getFuelLevel()
             if currentFuel == checkpoint.fuelBefore then
                 -- Fuel unchanged - movement didn't happen, will retry
