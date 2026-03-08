@@ -33,6 +33,15 @@ local status = {
     lastError = nil
 }
 
+-- Check if we have required resources
+local function hasRequiredResources()
+    local soulSandCount = turtle.getItemCount(SOUL_SAND_SLOT)
+    local skullCount = turtle.getItemCount(SKULL_SLOT)
+    
+    -- Need 16 soul sand and 12 skulls for 4 withers
+    return soulSandCount >= 16 and skullCount >= 12
+end
+
 -- Forward declarations
 local sendAlert
 local sendTelemetry
@@ -116,19 +125,45 @@ local function buildSteps()
     add({action = "refuel_to_level", targetLevel = 5000, slot = FUEL_SLOT, chestSide = "right", log = "Checking fuel..."})
     
     -- ===== LOAD RESOURCES =====
-    add({action = "turn", direction = "left", log = "Loading soul sand..."})
+    -- Check and load soul sand (left chest)
+    add({action = "function", log = "Checking soul sand...", func = function(ctx)
+        ctx.needSoulSand = turtle.getItemCount(SOUL_SAND_SLOT) < 16
+        return true
+    end})
+    
+    -- Only load if needed
+    add({action = "turn", direction = "left"})
     add({action = "select", slot = SOUL_SAND_SLOT})
-    add({action = "suck", side = "front", amount = 16})  -- 4 withers × 4 soul sand each
+    add({action = "function", func = function(ctx)
+        if ctx.needSoulSand then
+            local current = turtle.getItemCount(SOUL_SAND_SLOT)
+            turtle.suck(16 - current)
+        end
+        return true
+    end})
     add({action = "turn", direction = "right"})
     
-    add({action = "turn", direction = "right", log = "Loading skulls..."})
+    -- Check and load skulls (back chest)
+    add({action = "function", log = "Checking skulls...", func = function(ctx)
+        ctx.needSkulls = turtle.getItemCount(SKULL_SLOT) < 12
+        return true
+    end})
+    
+    -- Only load if needed
+    add({action = "turn", direction = "right"})
     add({action = "turn", direction = "right"})
     add({action = "select", slot = SKULL_SLOT})
-    add({action = "suck", side = "front", amount = 12})  -- 4 withers × 3 skulls each
+    add({action = "function", func = function(ctx)
+        if ctx.needSkulls then
+            local current = turtle.getItemCount(SKULL_SLOT)
+            turtle.suck(12 - current)
+        end
+        return true
+    end})
     add({action = "turn", direction = "right"})
     add({action = "turn", direction = "right"})
     
-    -- ===== CELL 1 =====
+    -- ===== START FARMING =====
     addMoves("forward", 2, "Moving to door 1...")
     add({action = "network_send", data = {command = "open_door", cell = 1}, log = "Opening door 1..."})
     addMoves("forward", 4, "Entering cell 1...")
@@ -338,7 +373,25 @@ local function main()
                 sendTelemetry()
                 sleep(5)
             else
-                -- Build step sequence
+                -- Check if we have required resources
+                if not hasRequiredResources() then
+                    local soulSandCount = turtle.getItemCount(SOUL_SAND_SLOT)
+                    local skullCount = turtle.getItemCount(SKULL_SLOT)
+                    
+                    print("Insufficient resources!")
+                    print("  Soul sand: " .. soulSandCount .. "/16")
+                    print("  Skulls: " .. skullCount .. "/12")
+                    
+                    sendAlert("Insufficient resources (sand: " .. soulSandCount .. "/16, skulls: " .. skullCount .. "/12)", "warning")
+                    status.lastError = "Waiting for resources"
+                    sendTelemetry()
+                    
+                    -- Build steps will attempt to load resources
+                    -- If chests are empty, suck will fail but that's okay
+                    -- We'll check again after the cycle
+                end
+                
+                -- Build step sequence (includes resource loading)
                 local steps = buildSteps()
                 print("Starting cycle with " .. #steps .. " atomic steps")
                 
@@ -346,11 +399,20 @@ local function main()
                 local success, err = Executor.run(steps, context, "wither_farm_checkpoint.txt")
                 
                 if success then
-                    status.withersBuilt = status.withersBuilt + 4
-                    status.cyclesCompleted = status.cyclesCompleted + 1
-                    status.lastError = nil
-                    print("Cycle complete! Total withers: " .. status.withersBuilt)
-                    sendTelemetry()
+                    -- Check if we actually got resources and completed the cycle
+                    if hasRequiredResources() then
+                        status.withersBuilt = status.withersBuilt + 4
+                        status.cyclesCompleted = status.cyclesCompleted + 1
+                        status.lastError = nil
+                        print("Cycle complete! Total withers: " .. status.withersBuilt)
+                        sendTelemetry()
+                    else
+                        -- Completed steps but didn't get resources
+                        print("Cycle completed but insufficient resources for next run")
+                        status.lastError = "Waiting for resources"
+                        sendTelemetry()
+                        sleep(60)  -- Wait before trying again
+                    end
                 else
                     status.lastError = tostring(err)
                     print("ERROR: " .. tostring(err))
