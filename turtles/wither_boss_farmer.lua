@@ -11,8 +11,8 @@ local TURTLE_NAME = "Wither Boss Farmer"
 local FUEL_SLOT = 1
 local SOUL_SAND_SLOT = 2
 local SKULL_SLOT = 3  -- Wither skeleton skulls (dirt for testing)
-local NUM_CELLS = 2  -- Testing with 2 cells for now
-local CYCLE_FUEL_REQUIREMENT = 200  -- Estimated fuel for full cycle (will adjust after testing)
+local NUM_CELLS = 4  -- Testing with 4 cells to test both patterns
+local CYCLE_FUEL_REQUIREMENT = 400  -- Estimated fuel for full cycle (will adjust after testing)
 
 -- Shared state
 local sharedState = {
@@ -242,7 +242,8 @@ local function buildWitherInCell(cellNumber)
     status.currentCell = cellNumber
     sendTelemetry()  -- Send telemetry on phase change
     
-    -- Only move forward 2 blocks if this is the first cell
+    -- Only move forward 2 blocks and open door if this is the first cell
+    -- For subsequent cells, we're already positioned inside from the previous cell
     if cellNumber == 1 then
         Version.log("Moving forward 2 blocks to first door...")
         for i = 1, 2 do
@@ -251,39 +252,31 @@ local function buildWitherInCell(cellNumber)
                 return false
             end
         end
-    end
-    
-    -- Check pause state before opening door
-    Turtle.checkPauseState(sharedState, sendTelemetry)
-    
-    -- Request door open
-    Version.log("Requesting door " .. cellNumber .. " open...")
-    if not openDoor(cellNumber) then
-        return false
-    end
-    
-    -- Give the door a moment to open
-    sleep(0.5)
-    
-    Version.log("Checking if path is clear...")
-    -- Check if path is clear
-    local blockDetected = turtle.detect()
-    Version.log("Block detected: " .. tostring(blockDetected))
-    
-    if blockDetected then
-        sendAlert("Door " .. cellNumber .. " didn't open! Block detected in front")
-        return false
-    end
-    
-    Version.log("Path clear, moving into cell...")
-    -- Move forward 4 blocks into cell
-    Version.log("Moving into cell (4 blocks)...")
-    for i = 1, 4 do
-        if not turtle.forward() then
-            sendAlert("Failed to move into cell at step " .. i .. "/4 - blocked!")
+        
+        -- Check pause state before opening door
+        Turtle.checkPauseState(sharedState, sendTelemetry)
+        
+        -- Request door open
+        Version.log("Requesting door " .. cellNumber .. " open...")
+        if not openDoor(cellNumber) then
             return false
         end
+        
+        -- Give the door more time to fully open (pistons can be slow)
+        Version.log("Waiting for door mechanism...")
+        sleep(2)
+        
+        -- Move forward 4 blocks into cell
+        Version.log("Moving into cell (4 blocks)...")
+        for i = 1, 4 do
+            if not turtle.forward() then
+                sendAlert("Failed to move into cell at step " .. i .. "/4 - blocked!")
+                return false
+            end
+        end
     end
+    
+    -- For cell 2+, we're already inside the cell from the previous iteration
     
     -- Request previous door close (if not first cell)
     if cellNumber > 1 then
@@ -419,33 +412,110 @@ local function buildWitherInCell(cellNumber)
         end
     end
     
-    -- Check pause state before opening next door
+    -- Check pause state before moving to next cell
     Turtle.checkPauseState(sharedState, sendTelemetry)
     
-    -- Request next door open
-    Version.log("Requesting door " .. (cellNumber + 1) .. " open...")
-    if not openDoor(cellNumber + 1) then
-        return false
-    end
-    
-    -- Place soul sand (bottom of T)
+    -- Place soul sand (bottom of T) first
     Version.log("Placing bottom soul sand...")
     if not placeSoulSand() then
         return false
     end
     
-    -- Turn 180
-    Version.log("Turning around...")
-    turtle.turnRight()
-    turtle.turnRight()
+    -- Exit strategy depends on which cell we're in
+    -- Cell 1: Front door (straight through)
+    -- Cell 2: Side door (turn right)
+    -- Cell 3: Side door (turn right)
+    -- Cell 4: Last cell, no exit needed
     
-    -- Move forward 4 blocks (into next cell position)
-    Version.log("Moving to next cell (4 blocks)...")
-    for i = 1, 4 do
-        if not turtle.forward() then
-            sendAlert("Failed to move to next cell at step " .. i .. "/4")
+    if cellNumber == 4 then
+        -- Last cell, we're done!
+        Version.log("Cell 4 complete - final cell!")
+        
+    elseif cellNumber == 1 then
+        -- Cell 1: Simple exit straight through to cell 2
+        Version.log("Cell 1 exit: straight through to cell 2")
+        
+        -- Request door 2 open
+        Version.log("Requesting door 2 open...")
+        if not openDoor(2) then
             return false
         end
+        
+        sleep(2)
+        
+        -- Turn 180
+        Version.log("Turning around...")
+        turtle.turnRight()
+        turtle.turnRight()
+        
+        -- Move forward 4 blocks (into cell 2)
+        Version.log("Moving to cell 2 (4 blocks)...")
+        for i = 1, 4 do
+            if not turtle.forward() then
+                sendAlert("Failed to move to cell 2 at step " .. i .. "/4")
+                return false
+            end
+        end
+        
+    elseif cellNumber == 2 or cellNumber == 3 then
+        -- Cells 2 and 3: Complex exit with right turn
+        Version.log("Cell " .. cellNumber .. " exit: turn right and navigate")
+        
+        -- Turn right (facing side door)
+        Version.log("Turning right...")
+        turtle.turnRight()
+        
+        -- Open next door
+        Version.log("Requesting door " .. (cellNumber + 1) .. " open...")
+        if not openDoor(cellNumber + 1) then
+            return false
+        end
+        
+        sleep(2)
+        
+        -- Move 6 blocks forward
+        Version.log("Moving 6 blocks forward...")
+        for i = 1, 6 do
+            if not turtle.forward() then
+                sendAlert("Failed to move forward at step " .. i .. "/6")
+                return false
+            end
+        end
+        
+        -- Open door after that
+        Version.log("Requesting door " .. (cellNumber + 2) .. " open...")
+        if not openDoor(cellNumber + 2) then
+            return false
+        end
+        
+        sleep(2)
+        
+        -- Move 5 blocks forward
+        Version.log("Moving 5 blocks forward...")
+        for i = 1, 5 do
+            if not turtle.forward() then
+                sendAlert("Failed to move forward at step " .. i .. "/5")
+                return false
+            end
+        end
+        
+        -- Turn right
+        Version.log("Turning right...")
+        turtle.turnRight()
+        
+        -- Move 2 blocks forward
+        Version.log("Moving 2 blocks forward...")
+        for i = 1, 2 do
+            if not turtle.forward() then
+                sendAlert("Failed to move forward at step " .. i .. "/2")
+                return false
+            end
+        end
+        
+        -- Turn around (ready to build next wither)
+        Version.log("Turning around...")
+        turtle.turnRight()
+        turtle.turnRight()
     end
     
     Version.log("Completed cell " .. cellNumber)
