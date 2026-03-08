@@ -163,6 +163,18 @@ local function buildSteps()
     add({action = "turn", direction = "right"})
     add({action = "turn", direction = "right"})
     
+    -- Validate we have required resources
+    add({action = "function", log = "Validating resources...", func = function(ctx)
+        local soulSandCount = turtle.getItemCount(SOUL_SAND_SLOT)
+        local skullCount = turtle.getItemCount(SKULL_SLOT)
+        
+        if soulSandCount < 16 or skullCount < 12 then
+            return false, "Insufficient resources (sand: " .. soulSandCount .. "/16, skulls: " .. skullCount .. "/12)"
+        end
+        
+        return true
+    end})
+    
     -- ===== START FARMING =====
     addMoves("forward", 2, "Moving to door 1...")
     add({action = "network_send", data = {command = "open_door", cell = 1}, log = "Opening door 1..."})
@@ -373,53 +385,35 @@ local function main()
                 sendTelemetry()
                 sleep(5)
             else
-                -- Check if we have required resources
-                if not hasRequiredResources() then
-                    local soulSandCount = turtle.getItemCount(SOUL_SAND_SLOT)
-                    local skullCount = turtle.getItemCount(SKULL_SLOT)
-                    
-                    print("Insufficient resources!")
-                    print("  Soul sand: " .. soulSandCount .. "/16")
-                    print("  Skulls: " .. skullCount .. "/12")
-                    
-                    sendAlert("Insufficient resources (sand: " .. soulSandCount .. "/16, skulls: " .. skullCount .. "/12)", "warning")
-                    status.lastError = "Waiting for resources"
-                    sendTelemetry()
-                    
-                    -- Build steps will attempt to load resources
-                    -- If chests are empty, suck will fail but that's okay
-                    -- We'll check again after the cycle
-                end
-                
-                -- Build step sequence (includes resource loading)
+                -- Build step sequence (includes resource loading and validation at start)
                 local steps = buildSteps()
                 print("Starting cycle with " .. #steps .. " atomic steps")
                 
                 -- Execute with automatic checkpointing
+                -- If it fails (e.g., insufficient resources), checkpoint is saved
+                -- Next iteration will resume from the failed step
                 local success, err = Executor.run(steps, context, "wither_farm_checkpoint.txt")
                 
                 if success then
-                    -- Check if we actually got resources and completed the cycle
-                    if hasRequiredResources() then
-                        status.withersBuilt = status.withersBuilt + 4
-                        status.cyclesCompleted = status.cyclesCompleted + 1
-                        status.lastError = nil
-                        print("Cycle complete! Total withers: " .. status.withersBuilt)
-                        sendTelemetry()
-                    else
-                        -- Completed steps but didn't get resources
-                        print("Cycle completed but insufficient resources for next run")
-                        status.lastError = "Waiting for resources"
-                        sendTelemetry()
-                        sleep(60)  -- Wait before trying again
-                    end
-                else
-                    status.lastError = tostring(err)
-                    print("ERROR: " .. tostring(err))
-                    sendAlert("Cycle failed: " .. tostring(err), "error")
+                    -- Cycle completed successfully
+                    status.withersBuilt = status.withersBuilt + 4
+                    status.cyclesCompleted = status.cyclesCompleted + 1
+                    status.lastError = nil
+                    print("Cycle complete! Total withers: " .. status.withersBuilt)
                     sendTelemetry()
-                    print("Checkpoint saved. Restart to resume.")
-                    break
+                else
+                    -- Cycle failed - checkpoint saved automatically
+                    local errStr = tostring(err)
+                    print("Cycle failed: " .. errStr)
+                    
+                    -- Send alert and telemetry
+                    sendAlert(errStr, "warning")
+                    status.lastError = errStr
+                    sendTelemetry()
+                    
+                    -- Wait before retrying (will resume from checkpoint)
+                    print("Waiting 60 seconds before retry...")
+                    sleep(60)
                 end
             end
             
