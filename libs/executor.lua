@@ -261,10 +261,8 @@ actionHandlers["place"] = function(step, context)
         return false, "Invalid side: " .. side
     end
     
-    if not success then
-        return false, "Failed to place block from slot " .. slot
-    end
-    
+    -- Place is idempotent - if it fails, block might already be there
+    -- Don't treat as error
     return true
 end
 

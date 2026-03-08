@@ -46,17 +46,13 @@ local function buildSteps()
     -- ===== LOAD RESOURCES =====
     add({action = "turn", direction = "left", log = "Loading soul sand..."})
     add({action = "select", slot = SOUL_SAND_SLOT})
-    add({action = "suck", side = "front"})
-    add({action = "suck", side = "front"})
-    add({action = "suck", side = "front"})
+    add({action = "suck", side = "front", amount = 16})  -- 4 withers × 4 soul sand each
     add({action = "turn", direction = "right"})
     
     add({action = "turn", direction = "right", log = "Loading skulls..."})
     add({action = "turn", direction = "right"})
     add({action = "select", slot = SKULL_SLOT})
-    add({action = "suck", side = "front"})
-    add({action = "suck", side = "front"})
-    add({action = "suck", side = "front"})
+    add({action = "suck", side = "front", amount = 12})  -- 4 withers × 3 skulls each
     add({action = "turn", direction = "right"})
     add({action = "turn", direction = "right"})
     
