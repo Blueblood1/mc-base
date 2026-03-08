@@ -348,6 +348,87 @@ actionHandlers["suck"] = function(step, context)
     return true
 end
 
+-- Refuel action
+actionHandlers["refuel"] = function(step, context)
+    local amount = step.amount or 64
+    
+    local success = turtle.refuel(amount)
+    
+    if not success then
+        return false, "Failed to refuel"
+    end
+    
+    return true
+end
+
+-- Refuel to target level action (idempotent)
+actionHandlers["refuel_to_level"] = function(step, context)
+    local targetLevel = step.targetLevel
+    local slot = step.slot
+    local chestSide = step.chestSide  -- Optional: "front", "up", "down", "left", "right", "back"
+    
+    if not targetLevel then
+        return false, "No target level specified"
+    end
+    
+    -- Check current fuel level
+    local currentFuel = turtle.getFuelLevel()
+    
+    if currentFuel >= targetLevel then
+        -- Already at or above target, nothing to do
+        return true
+    end
+    
+    -- Select fuel slot if specified
+    if slot then
+        turtle.select(slot)
+    end
+    
+    -- If chest side specified and slot is empty, try to get fuel from chest
+    if chestSide and turtle.getItemCount() == 0 then
+        -- Turn to face chest if needed
+        if chestSide == "right" then
+            turtle.turnRight()
+        elseif chestSide == "left" then
+            turtle.turnLeft()
+        elseif chestSide == "back" then
+            turtle.turnRight()
+            turtle.turnRight()
+        end
+        
+        -- Suck fuel items
+        for i = 1, 3 do
+            turtle.suck()
+        end
+        
+        -- Turn back if we turned
+        if chestSide == "right" then
+            turtle.turnLeft()
+        elseif chestSide == "left" then
+            turtle.turnRight()
+        elseif chestSide == "back" then
+            turtle.turnRight()
+            turtle.turnRight()
+        end
+    end
+    
+    -- Refuel one item at a time until target reached
+    while turtle.getFuelLevel() < targetLevel do
+        if not turtle.refuel(1) then
+            -- No more fuel items or can't refuel
+            local finalFuel = turtle.getFuelLevel()
+            if finalFuel >= targetLevel then
+                -- Reached target despite refuel failure
+                return true
+            else
+                return false, "Out of fuel items (current: " .. finalFuel .. ", target: " .. targetLevel .. ")"
+            end
+        end
+    end
+    
+    return true
+end
+
 -- Custom function action (for complex logic)
 actionHandlers["function"] = function(step, context)
     if not step.func then

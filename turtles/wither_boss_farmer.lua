@@ -40,6 +40,9 @@ local function buildSteps()
         end
     end
     
+    -- ===== LOAD FUEL =====
+    add({action = "refuel_to_level", targetLevel = 5000, slot = FUEL_SLOT, chestSide = "right", log = "Checking fuel..."})
+    
     -- ===== LOAD RESOURCES =====
     add({action = "turn", direction = "left", log = "Loading soul sand..."})
     add({action = "select", slot = SOUL_SAND_SLOT})
