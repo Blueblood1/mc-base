@@ -176,8 +176,10 @@ local function openDoor(cellNumber)
     })
     
     -- Give it time to process
+    Version.log("Waiting for door to open...")
     sleep(1)
     
+    Version.log("openDoor() complete")
     return true
 end
 
@@ -263,12 +265,14 @@ local function buildWitherInCell(cellNumber)
     -- Give the door a moment to open
     sleep(0.5)
     
+    Version.log("Checking if path is clear...")
     -- Check if path is clear
     if turtle.detect() then
         sendAlert("Door " .. cellNumber .. " didn't open! Block detected in front")
         return false
     end
     
+    Version.log("Path clear, moving into cell...")
     -- Move forward 4 blocks into cell
     Version.log("Moving into cell (4 blocks)...")
     for i = 1, 4 do
