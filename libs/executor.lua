@@ -38,8 +38,18 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
     -- Initialize checkpoint system
     Checkpoint.init(checkpointFile or "executor_checkpoint.txt")
     
-    -- Initialize orientation tracking (0 = forward, 1 = right, 2 = back, 3 = left)
-    context.facing = 0
+    -- Check for compass (Advanced Peripherals)
+    local compass = peripheral.find("compass")
+    if compass then
+        print("Compass found - using absolute orientation tracking")
+        context.useCompass = true
+        context.compass = compass
+    else
+        print("No compass - using relative orientation tracking")
+        context.useCompass = false
+        -- Initialize relative orientation tracking (0 = forward, 1 = right, 2 = back, 3 = left)
+        context.facing = 0
+    end
     
     -- Load checkpoint or start from beginning
     local startStep = 1
@@ -47,10 +57,27 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
     
     if checkpoint and checkpoint.step then
         startStep = checkpoint.step
-        context.facing = checkpoint.facing or 0
         
         print("Resuming from step " .. startStep .. " of " .. #steps)
-        print("Facing: " .. context.facing .. " (0=forward, 1=right, 2=back, 3=left)")
+        
+        if context.useCompass then
+            -- With compass, check if turn completed
+            if checkpoint.facingBefore then
+                local currentFacing = compass.getFacing()
+                if currentFacing == checkpoint.facingBefore then
+                    -- Facing unchanged - turn didn't happen, will retry
+                    print("Turn didn't complete (facing " .. currentFacing .. "), retrying step " .. startStep)
+                else
+                    -- Facing changed - turn succeeded, skip to next step
+                    print("Turn completed (now facing " .. currentFacing .. "), continuing from step " .. (startStep + 1))
+                    startStep = startStep + 1
+                end
+            end
+        else
+            -- Without compass, use relative tracking
+            context.facing = checkpoint.facing or 0
+            print("Facing: " .. context.facing .. " (0=forward, 1=right, 2=back, 3=left)")
+        end
         
         -- Check if this was a movement action that might not have completed
         if checkpoint.fuelBefore then
@@ -72,22 +99,35 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
     for i = startStep, #steps do
         local step = steps[i]
         
-        -- Determine if this is a movement action that needs fuel tracking
+        -- Determine if this needs validation
         local isMovement = (step.action == "move")
+        local isTurn = (step.action == "turn")
         local fuelBefore = nil
+        local facingBefore = nil
         
         if isMovement then
             fuelBefore = turtle.getFuelLevel()
         end
         
+        if isTurn and context.useCompass then
+            facingBefore = context.compass.getFacing()
+        end
+        
         -- Save checkpoint BEFORE executing step
         -- Only save at designated checkpoint steps (or all if not specified)
         if not checkpointSteps or checkpointSteps[i] then
-            Checkpoint.save({
+            local checkpointData = {
                 step = i,
-                facing = context.facing,
-                fuelBefore = fuelBefore  -- nil for non-movement actions
-            })
+                fuelBefore = fuelBefore,  -- nil for non-movement actions
+                facingBefore = facingBefore  -- nil if no compass or not a turn
+            }
+            
+            -- Save relative facing if not using compass
+            if not context.useCompass then
+                checkpointData.facing = context.facing
+            end
+            
+            Checkpoint.save(checkpointData)
         end
         
         -- Log step
@@ -119,12 +159,18 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
             print("Error: " .. tostring(err))
             
             -- Save checkpoint at failed step for manual recovery
-            Checkpoint.save({
+            local errorCheckpoint = {
                 step = i,
                 error = err,
-                facing = context.facing,
-                fuelBefore = fuelBefore
-            })
+                fuelBefore = fuelBefore,
+                facingBefore = facingBefore
+            }
+            
+            if not context.useCompass then
+                errorCheckpoint.facing = context.facing
+            end
+            
+            Checkpoint.save(errorCheckpoint)
             
             return false, "Step " .. i .. " failed: " .. tostring(err)
         end
@@ -175,14 +221,20 @@ actionHandlers["turn"] = function(step, context)
     for i = 1, count do
         if direction == "right" then
             turtle.turnRight()
-            -- Update facing: 0=forward, 1=right, 2=back, 3=left
-            context.facing = (context.facing + 1) % 4
         elseif direction == "left" then
             turtle.turnLeft()
-            context.facing = (context.facing - 1) % 4
-            if context.facing < 0 then context.facing = context.facing + 4 end
         else
             return false, "Invalid turn direction: " .. direction
+        end
+        
+        -- Update relative facing if not using compass
+        if not context.useCompass then
+            if direction == "right" then
+                context.facing = (context.facing + 1) % 4
+            else
+                context.facing = (context.facing - 1) % 4
+                if context.facing < 0 then context.facing = context.facing + 4 end
+            end
         end
     end
     
