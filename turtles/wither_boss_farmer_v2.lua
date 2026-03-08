@@ -1,5 +1,5 @@
--- Wither Boss Farmer V2 (Step-Based)
--- Uses declarative step system for perfect recovery
+-- Wither Boss Farmer V2 (Step-Based with Atomic Actions)
+-- Each step is a single atomic action for perfect recovery
 
 local Executor = require("executor")
 local Network = require("network")
@@ -16,7 +16,7 @@ local context = {
     farmComputerId = nil
 }
 
--- Build the step sequence
+-- Build the step sequence with atomic actions only
 local function buildSteps()
     local steps = {}
     
@@ -25,183 +25,208 @@ local function buildSteps()
         table.insert(steps, step)
     end
     
-    -- ===== LOAD RESOURCES =====
-    add({action = "function", log = "Loading soul sand from left...", func = function(ctx)
-        turtle.turnLeft()
-        turtle.select(SOUL_SAND_SLOT)
-        for i = 1, 10 do
-            turtle.suck(64)
+    -- Helper to add multiple moves
+    local function addMoves(direction, count, log)
+        if log then add({action = "function", log = log, func = function() return true end}) end
+        for i = 1, count do
+            add({action = "move", direction = direction})
         end
-        local count = turtle.getItemCount(SOUL_SAND_SLOT)
-        print("Loaded " .. count .. " soul sand")
-        turtle.turnRight()
-        return true
-    end})
+    end
     
-    add({action = "function", log = "Loading skulls from behind...", func = function(ctx)
-        turtle.turnRight()
-        turtle.turnRight()
-        turtle.select(SKULL_SLOT)
-        for i = 1, 10 do
-            turtle.suck(64)
+    -- Helper to add multiple turns
+    local function addTurns(direction, count)
+        for i = 1, count do
+            add({action = "turn", direction = direction})
         end
-        local count = turtle.getItemCount(SKULL_SLOT)
-        print("Loaded " .. count .. " skulls")
+    end
+    
+    -- ===== LOAD RESOURCES =====
+    add({action = "function", log = "Loading resources...", func = function(ctx)
+        -- Load soul sand from left
+        turtle.turnLeft()
+        ctx.facing = (ctx.facing - 1) % 4
+        if ctx.facing < 0 then ctx.facing = ctx.facing + 4 end
+        
+        turtle.select(SOUL_SAND_SLOT)
+        for i = 1, 10 do turtle.suck(64) end
+        print("Loaded " .. turtle.getItemCount(SOUL_SAND_SLOT) .. " soul sand")
+        
         turtle.turnRight()
+        ctx.facing = (ctx.facing + 1) % 4
+        
+        -- Load skulls from behind
         turtle.turnRight()
+        ctx.facing = (ctx.facing + 1) % 4
+        turtle.turnRight()
+        ctx.facing = (ctx.facing + 1) % 4
+        
+        turtle.select(SKULL_SLOT)
+        for i = 1, 10 do turtle.suck(64) end
+        print("Loaded " .. turtle.getItemCount(SKULL_SLOT) .. " skulls")
+        
+        turtle.turnRight()
+        ctx.facing = (ctx.facing + 1) % 4
+        turtle.turnRight()
+        ctx.facing = (ctx.facing + 1) % 4
+        
         return true
     end})
     
     -- ===== CELL 1 =====
-    add({action = "move", direction = "forward", count = 2, log = "Moving to door 1..."})
+    addMoves("forward", 2, "Moving to door 1...")
     add({action = "network_send", data = {command = "open_door", cell = 1}, log = "Opening door 1..."})
-    add({action = "move", direction = "forward", count = 4, log = "Entering cell 1..."})
+    addMoves("forward", 4, "Entering cell 1...")
     add({action = "network_send", data = {command = "close_door", cell = 1}, log = "Closing door 1..."})
     
     -- Build wither in cell 1
-    add({action = "turn", direction = "right", count = 2, log = "Turning to build position..."})
-    add({action = "move", direction = "up", log = "Ascending..."})
+    addTurns("right", 2)
+    add({action = "move", direction = "up", log = "Building wither in cell 1..."})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing right arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing right skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "left"})
-    add({action = "move", direction = "forward", count = 2})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
     add({action = "turn", direction = "right"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing center soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing center skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing left arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing left skull..."})
-    add({action = "move", direction = "down", count = 2})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing bottom soul sand..."})
+    add({action = "place", slot = SKULL_SLOT})
+    add({action = "move", direction = "down"})
+    add({action = "move", direction = "down"})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     
     -- Exit cell 1 to cell 2
     add({action = "network_send", data = {command = "open_door", cell = 2}, log = "Opening door 2..."})
-    add({action = "turn", direction = "right", count = 2})
-    add({action = "move", direction = "forward", count = 4, log = "Moving to cell 2..."})
+    addTurns("right", 2)
+    addMoves("forward", 4, "Moving to cell 2...")
     add({action = "network_send", data = {command = "close_door", cell = 2}, log = "Closing door 2..."})
     
     -- ===== CELL 2 =====
-    -- Build wither in cell 2 (already facing correct direction)
-    add({action = "turn", direction = "right", count = 2, log = "Turning to build position..."})
-    add({action = "move", direction = "up"})
+    addTurns("right", 2)
+    add({action = "move", direction = "up", log = "Building wither in cell 2..."})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing right arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing right skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "left"})
-    add({action = "move", direction = "forward", count = 2})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
     add({action = "turn", direction = "right"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing center soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing center skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing left arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing left skull..."})
-    add({action = "move", direction = "down", count = 2})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing bottom soul sand..."})
+    add({action = "place", slot = SKULL_SLOT})
+    add({action = "move", direction = "down"})
+    add({action = "move", direction = "down"})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     
     -- Exit cell 2 to cell 3 (complex side path)
-    add({action = "turn", direction = "left", log = "Turning to side exit..."})
-    add({action = "network_send", data = {command = "open_door", cell = 3}, log = "Opening door 3..."})
-    add({action = "move", direction = "forward", count = 6, log = "Moving through passage..."})
-    add({action = "network_send", data = {command = "open_door", cell = 4}, log = "Opening door 4..."})
-    add({action = "move", direction = "forward", count = 5})
+    add({action = "turn", direction = "left", log = "Exiting to cell 3..."})
+    add({action = "network_send", data = {command = "open_door", cell = 3}})
+    addMoves("forward", 6)
+    add({action = "network_send", data = {command = "open_door", cell = 4}})
+    addMoves("forward", 5)
     add({action = "turn", direction = "right"})
-    add({action = "move", direction = "forward", count = 2})
-    add({action = "turn", direction = "right", count = 2})
-    add({action = "network_send", data = {command = "close_door", cell = 4}, log = "Closing door 4..."})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
+    addTurns("right", 2)
+    add({action = "network_send", data = {command = "close_door", cell = 4}})
     
     -- ===== CELL 3 =====
-    -- Build wither in cell 3 (no initial turn needed)
     add({action = "move", direction = "up", log = "Building wither in cell 3..."})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing right arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing right skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "left"})
-    add({action = "move", direction = "forward", count = 2})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
     add({action = "turn", direction = "right"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing center soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing center skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing left arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing left skull..."})
-    add({action = "move", direction = "down", count = 2})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing bottom soul sand..."})
+    add({action = "place", slot = SKULL_SLOT})
+    add({action = "move", direction = "down"})
+    add({action = "move", direction = "down"})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     
     -- Exit cell 3 to cell 4
     add({action = "network_send", data = {command = "open_door", cell = 5}, log = "Opening door 5..."})
-    add({action = "turn", direction = "right", count = 2})
-    add({action = "move", direction = "forward", count = 4, log = "Moving to cell 4..."})
-    add({action = "network_send", data = {command = "close_door", cell = 5}, log = "Closing door 5..."})
+    addTurns("right", 2)
+    addMoves("forward", 4, "Moving to cell 4...")
+    add({action = "network_send", data = {command = "close_door", cell = 5}})
     
     -- ===== CELL 4 =====
-    -- Build wither in cell 4
-    add({action = "turn", direction = "right", count = 2, log = "Building wither in cell 4..."})
-    add({action = "move", direction = "up"})
+    addTurns("right", 2)
+    add({action = "move", direction = "up", log = "Building wither in cell 4..."})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing right arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing right skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "left"})
-    add({action = "move", direction = "forward", count = 2})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
     add({action = "turn", direction = "right"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing center soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing center skull..."})
+    add({action = "place", slot = SKULL_SLOT})
     add({action = "move", direction = "down"})
     add({action = "turn", direction = "right"})
     add({action = "move", direction = "forward"})
     add({action = "turn", direction = "left"})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing left arm soul sand..."})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     add({action = "move", direction = "up"})
-    add({action = "place", slot = SKULL_SLOT, log = "Placing left skull..."})
-    add({action = "move", direction = "down", count = 2})
-    add({action = "place", slot = SOUL_SAND_SLOT, log = "Placing bottom soul sand..."})
+    add({action = "place", slot = SKULL_SLOT})
+    add({action = "move", direction = "down"})
+    add({action = "move", direction = "down"})
+    add({action = "place", slot = SOUL_SAND_SLOT})
     
     -- ===== RETURN TO START =====
-    add({action = "turn", direction = "right", count = 2, log = "Returning to start..."})
-    add({action = "network_send", data = {command = "open_door", cell = 6}, log = "Opening door 6..."})
-    add({action = "move", direction = "forward", count = 2})
-    add({action = "network_send", data = {command = "close_door", cell = 6}, log = "Closing door 6..."})
+    addTurns("right", 2)
+    add({action = "network_send", data = {command = "open_door", cell = 6}, log = "Returning to start..."})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
+    add({action = "network_send", data = {command = "close_door", cell = 6}})
     add({action = "turn", direction = "right"})
-    add({action = "move", direction = "forward", count = 11})
+    addMoves("forward", 11)
     add({action = "turn", direction = "left"})
-    add({action = "move", direction = "forward", count = 2})
-    add({action = "turn", direction = "right", count = 2})
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
+    addTurns("right", 2)
     
-    add({action = "function", log = "Cycle complete! Waiting 10 minutes...", func = function(ctx)
-        sleep(600)
-        return true
-    end})
+    add({action = "wait", duration = 600, log = "Cycle complete! Waiting 10 minutes..."})
     
     return steps
 end
@@ -229,7 +254,7 @@ local function main()
     
     -- Build step sequence
     local steps = buildSteps()
-    print("Generated " .. #steps .. " steps")
+    print("Generated " .. #steps .. " atomic steps")
     
     -- Execute with automatic checkpointing
     local success, err = Executor.run(steps, context, "wither_farm_checkpoint.txt")
