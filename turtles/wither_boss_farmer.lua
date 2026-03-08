@@ -278,11 +278,20 @@ local function buildWitherInCell(cellNumber)
         return false
     end
     
+    -- Give the door a moment to open
+    sleep(0.5)
+    
+    -- Check if path is clear
+    if turtle.detect() then
+        sendAlert("Door " .. cellNumber .. " didn't open! Block detected in front")
+        return false
+    end
+    
     -- Move forward 4 blocks into cell
     Version.log("Moving into cell (4 blocks)...")
     for i = 1, 4 do
         if not turtle.forward() then
-            sendAlert("Failed to move into cell at step " .. i .. "/4")
+            sendAlert("Failed to move into cell at step " .. i .. "/4 - blocked!")
             return false
         end
     end
