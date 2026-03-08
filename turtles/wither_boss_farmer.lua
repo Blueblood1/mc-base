@@ -258,12 +258,14 @@ local function buildWitherInCell(cellNumber)
     status.currentCell = cellNumber
     sendTelemetry()  -- Send telemetry on phase change
     
-    -- Move forward 2 blocks
-    Version.log("Moving forward 2 blocks...")
-    for i = 1, 2 do
-        if not turtle.forward() then
-            sendAlert("Failed to move forward at step " .. i .. "/2")
-            return false
+    -- Only move forward 2 blocks if this is the first cell
+    if cellNumber == 1 then
+        Version.log("Moving forward 2 blocks to first door...")
+        for i = 1, 2 do
+            if not turtle.forward() then
+                sendAlert("Failed to move forward at step " .. i .. "/2")
+                return false
+            end
         end
     end
     
