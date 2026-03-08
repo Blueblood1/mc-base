@@ -37,7 +37,7 @@ local DISPLAY_REFRESH = 2
 
 -- Workers that cannot be paused (critical infrastructure)
 local UNPAUSABLE_WORKERS = {
-    ["wither_boss_farm"] = true  -- Door controller must always be running
+    ["Wither Boss Farm"] = true  -- Door controller must always be running
 }
 
 -- State

@@ -10,6 +10,11 @@ local Updater = require("updater")
 local CENTRAL_HOSTNAME = "central"
 local TELEMETRY_INTERVAL = 5
 
+-- Workers that cannot be paused (must match central computer)
+local UNPAUSABLE_WORKERS = {
+    ["Wither Boss Farm"] = true
+}
+
 -- State
 local screen = nil
 local tabBar = nil
@@ -39,6 +44,13 @@ end
 
 -- Toggle worker mode
 local function toggleWorkerMode(workerId)
+    -- Check if this worker can be paused
+    local worker = workers[workerId]
+    if worker and UNPAUSABLE_WORKERS[worker.name] then
+        -- Don't send command for unpausable workers
+        return
+    end
+    
     sendCommand("toggle_worker", {workerId = workerId})
     -- Request immediate status update
     sendCommand("report_status")
@@ -96,6 +108,8 @@ local function drawControlTab()
             break
         end
         
+        local isUnpausable = UNPAUSABLE_WORKERS[worker.name]
+        
         -- Worker name and status
         screen:setCursorPos(1, currentY)
         screen:setTextColor(colors.lightGray)
@@ -108,27 +122,43 @@ local function drawControlTab()
         end
         screen:write(name)
         
-        -- Status indicator (compact)
-        local statusColor = colors.green
-        if worker.mode == "paused" then
-            statusColor = colors.gray
-        elseif worker.status == "error" then
-            statusColor = colors.red
-        elseif worker.status == "warning" then
-            statusColor = colors.yellow
+        -- Show if unpausable
+        if isUnpausable then
+            screen:setTextColor(colors.orange)
+            screen:write(" [!]")
         end
         
-        screen:setCursorPos(w - 5, currentY)
-        screen:setTextColor(statusColor)
-        screen:write(worker.mode == "paused" and "PAUSE" or "WORK")
+        -- Status indicator (compact) - skip for unpausable workers
+        if not isUnpausable then
+            local statusColor = colors.green
+            if worker.mode == "paused" then
+                statusColor = colors.gray
+            elseif worker.status == "error" then
+                statusColor = colors.red
+            elseif worker.status == "warning" then
+                statusColor = colors.yellow
+            end
+            
+            screen:setCursorPos(w - 5, currentY)
+            screen:setTextColor(statusColor)
+            screen:write(worker.mode == "paused" and "PAUSE" or "WORK")
+        end
         
-        -- Toggle button (small)
-        local btnColor = worker.mode == "paused" and colors.green or colors.red
-        local btnText = worker.mode == "paused" and ">" or "||"
-        local button = UI.Button:new(w - 2, currentY, 2, 1, btnText, function()
-            toggleWorkerMode(id)
-        end, btnColor, colors.white)
-        screen:addButton(button)
+        -- Toggle button (disabled for unpausable workers)
+        if isUnpausable then
+            -- Show locked indicator
+            screen:setCursorPos(w - 2, currentY)
+            screen:setTextColor(colors.gray)
+            screen:write("--")
+        else
+            -- Normal toggle button
+            local btnColor = worker.mode == "paused" and colors.green or colors.red
+            local btnText = worker.mode == "paused" and ">" or "||"
+            local button = UI.Button:new(w - 2, currentY, 2, 1, btnText, function()
+                toggleWorkerMode(id)
+            end, btnColor, colors.white)
+            screen:addButton(button)
+        end
         
         currentY = currentY + 1
     end

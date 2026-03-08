@@ -9,7 +9,7 @@ local Updater = require("updater")
 local Version = require("version")
 
 -- Configuration
-local COMPUTER_NAME = "wither_boss_farm"  -- Must match UNPAUSABLE_WORKERS in central
+local COMPUTER_NAME = "Wither Boss Farm"  -- Must match UNPAUSABLE_WORKERS in central
 local TELEMETRY_INTERVAL = 10
 local NUM_CELLS = 6  -- Start with 6, expandable to 16
 
