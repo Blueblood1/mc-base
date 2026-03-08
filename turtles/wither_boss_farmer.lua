@@ -68,14 +68,22 @@ sendTelemetry = function()
     
     if sharedState.centralId then
         Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, {
-            worker = TURTLE_NAME,
-            mode = sharedState.operatingMode,
-            fuel = fuel,
-            fuelPercent = fuelPercent,
-            withersBuilt = status.withersBuilt,
-            cyclesCompleted = status.cyclesCompleted,
-            lastError = status.lastError,
-            timestamp = os.epoch("utc")
+            name = os.getComputerLabel() or (TURTLE_NAME .. " #" .. os.getComputerID()),
+            status = sharedState.operatingMode == "paused" and "idle" or "working",
+            fuel = {
+                current = fuel,
+                limit = fuelLimit,
+                percent = fuelPercent
+            },
+            task = {
+                phase = sharedState.operatingMode == "paused" and "paused" or "farming",
+                withersBuilt = status.withersBuilt,
+                cyclesCompleted = status.cyclesCompleted
+            },
+            stats = {
+                withersBuilt = status.withersBuilt,
+                cyclesCompleted = status.cyclesCompleted
+            }
         })
     end
 end
