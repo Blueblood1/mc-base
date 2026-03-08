@@ -81,15 +81,16 @@ sendTelemetry = function()
 end
 
 -- Custom action: Use shears downwards
-local function useShearsDown(step, context)
+local function useShearsDown(step, ctx)
     turtle.select(SHEARS_SLOT)
     turtle.placeDown()
     return true
 end
 
 -- Custom action: Place wheat downwards (only if we have wheat)
-local function placeWheatDown(step, context)
-    if context.hasWheat then
+local function placeWheatDown(step, ctx)
+    -- Only use wheat if we have it (ctx.hasWheat will be set during resource loading)
+    if ctx and ctx.hasWheat then
         turtle.select(WHEAT_SLOT)
         turtle.placeDown()
     end
