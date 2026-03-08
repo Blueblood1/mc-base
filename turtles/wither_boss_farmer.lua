@@ -437,8 +437,70 @@ local function buildWitherInCell(cellNumber)
     -- Cell 4: Last cell, no exit needed
     
     if cellNumber == 4 then
-        -- Last cell, we're done!
-        Version.log("Cell 4 complete - final cell!")
+        -- Cell 4: Return to start position
+        Version.log("Cell 4 complete - returning to start")
+        
+        -- Currently facing BACK after building
+        -- Turn 180 to face exit
+        Version.log("Turning 180 to face exit...")
+        turtle.turnRight()
+        turtle.turnRight()
+        
+        -- Open door 6 (exit door)
+        Version.log("Requesting door 6 open...")
+        if not openDoor(6) then
+            return false
+        end
+        
+        sleep(2)
+        
+        -- Move forward 2 blocks
+        Version.log("Moving through exit (2 blocks)...")
+        for i = 1, 2 do
+            if not turtle.forward() then
+                sendAlert("Failed to exit at step " .. i .. "/2")
+                return false
+            end
+        end
+        
+        -- Close door 6
+        Version.log("Closing door 6...")
+        if not closeDoor(6) then
+            return false
+        end
+        
+        -- Turn right
+        Version.log("Turning right...")
+        turtle.turnRight()
+        
+        -- Move forward 11 blocks
+        Version.log("Moving along side (11 blocks)...")
+        for i = 1, 11 do
+            if not turtle.forward() then
+                sendAlert("Failed to move along side at step " .. i .. "/11")
+                return false
+            end
+        end
+        
+        -- Turn left
+        Version.log("Turning left...")
+        turtle.turnLeft()
+        
+        -- Move forward 2 blocks
+        Version.log("Moving to start position (2 blocks)...")
+        for i = 1, 2 do
+            if not turtle.forward() then
+                sendAlert("Failed to return to start at step " .. i .. "/2")
+                return false
+            end
+        end
+        
+        -- Turn 180 to face forward (starting orientation)
+        Version.log("Turning to face starting direction...")
+        turtle.turnRight()
+        turtle.turnRight()
+        
+        Version.log("Returned to start position!")
         
     elseif cellNumber == 1 then
         -- Cell 1: Simple exit straight through to cell 2
