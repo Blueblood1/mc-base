@@ -283,7 +283,9 @@ local function buildWitherInCell(cellNumber)
     end
     
     -- Check pause state before building
+    Version.log("Checking pause state...")
     Turtle.checkPauseState(sharedState, sendTelemetry)
+    Version.log("Pause check complete, continuing...")
     
     -- Turn around to face where we came from
     Version.log("Turning around...")
