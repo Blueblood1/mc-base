@@ -121,7 +121,7 @@ local function buildSteps()
     -- Move forward once to enter the grid
     add({action = "move", direction = "forward"})
     
-    -- Process 14 rows
+    -- Process 14 rows (11 blocks wide each)
     for row = 1, 14 do
         local isOddRow = (row % 2 == 1)
         
@@ -131,15 +131,13 @@ local function buildSteps()
             add({action = "function", log = "Row " .. row .. "...", func = function() return true end})
         end
         
-        -- Move forward and place wheat for this row
-        local movesInRow = (row == 1) and 11 or 10
-        
-        for i = 1, movesInRow do
+        -- Each row is 11 blocks wide (place wheat at each position, move forward 10 times)
+        for i = 1, 11 do
             -- Place wheat down
             add({action = "function", func = placeWheatDown})
             
-            -- Move forward (except on last move of row)
-            if i < movesInRow then
+            -- Move forward (except on last position of row)
+            if i < 11 then
                 add({action = "move", direction = "forward"})
             end
         end
@@ -163,27 +161,24 @@ local function buildSteps()
     -- ===== RETURN TO START =====
     add({action = "function", log = "Returning to start...", func = function() return true end})
     
-    -- After row 14, we're at the far end facing the direction we came from
-    -- We need to navigate back to start position
+    -- After row 14, we're at the far end of an even row (row 14)
+    -- We ended facing the opposite direction from where we started
+    -- We need to get back to the start position
     
-    -- Turn to face the column we need to return through
+    -- Turn to face toward the column we need to return through
     add({action = "turn", direction = "left"})
     
-    -- Move back through the columns (13 moves to get back to column 1)
+    -- Move back through the columns (13 moves to get back to starting column)
     for i = 1, 13 do
         add({action = "move", direction = "forward"})
     end
     
-    -- Turn to face original direction
-    add({action = "turn", direction = "right"})
+    -- Now turn to face back toward the start of the row
+    add({action = "turn", direction = "left"})
     
-    -- Move back to start of row
-    for i = 1, 10 do
-        add({action = "move", direction = "forward"})
-    end
-    
-    -- Move back one to exit grid
-    add({action = "move", direction = "back"})
+    -- Move back 2 blocks to exit the grid and return to start position
+    add({action = "move", direction = "forward"})
+    add({action = "move", direction = "forward"})
     
     -- Descend twice
     add({action = "move", direction = "down"})
