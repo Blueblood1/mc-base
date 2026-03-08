@@ -291,12 +291,15 @@ local function buildWitherInCell(cellNumber)
     Turtle.checkPauseState(sharedState, sendTelemetry)
     Version.log("Pause check complete, continuing...")
     
-    -- Turn around to face where we came from (only for cell 1)
-    -- For cells 2+, we're already facing the correct direction from previous exit
-    if cellNumber == 1 then
+    -- Turn around to face where we came from
+    -- Cell 3 is already facing the correct direction from cell 2's exit
+    -- All other cells need to turn 180
+    if cellNumber ~= 3 then
         Version.log("Turning around...")
         turtle.turnRight()
         turtle.turnRight()
+    else
+        Version.log("Already facing correct direction (from cell 2 exit)")
     end
     
     -- Ascend once (don't place soul sand yet - bottom is last)
