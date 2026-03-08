@@ -458,11 +458,11 @@ local function buildWitherInCell(cellNumber)
         end
         
     elseif cellNumber == 2 or cellNumber == 3 then
-        -- Cells 2 and 3: Complex exit with right turn
-        Version.log("Cell " .. cellNumber .. " exit: turn right and navigate")
+        -- Cells 2 and 3: Complex exit with turn to side
+        Version.log("Cell " .. cellNumber .. " exit: turn right to side exit")
         
         -- Turn right (facing side door)
-        Version.log("Turning right...")
+        Version.log("Turning right to face side exit...")
         turtle.turnRight()
         
         -- Open next door
