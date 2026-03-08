@@ -12,6 +12,7 @@ local Updater = require("updater")
 local TURTLE_NAME = "Sheep Farmer"
 local FUEL_SLOT = 1
 local WHEAT_SLOT = 2
+local SHEARS_SLOT = 3
 local TELEMETRY_INTERVAL = 30
 local CYCLE_FUEL_REQUIREMENT = 100  -- 2 up + 1 forward + (14 rows * ~11 moves) + return path + 2 down = ~180 moves, use 100 as safe estimate
 
@@ -79,6 +80,13 @@ sendTelemetry = function()
     end
 end
 
+-- Custom action: Use shears downwards
+local function useShearsDown(step, context)
+    turtle.select(SHEARS_SLOT)
+    turtle.placeDown()
+    return true
+end
+
 -- Custom action: Place wheat downwards
 local function placeWheatDown(step, context)
     turtle.select(WHEAT_SLOT)
@@ -97,6 +105,30 @@ local function buildSteps()
     
     -- ===== LOAD FUEL =====
     add({action = "refuel_to_level", targetLevel = 2000, slot = FUEL_SLOT, chestSide = "right", log = "Checking fuel..."})
+    
+    -- ===== LOAD SHEARS =====
+    -- Check if we have shears
+    add({action = "function", log = "Checking shears...", func = function(ctx)
+        turtle.select(SHEARS_SLOT)
+        local itemDetail = turtle.getItemDetail()
+        
+        if not itemDetail or itemDetail.count == 0 then
+            -- No shears, need to get them from chest below
+            ctx.needShears = true
+        else
+            ctx.needShears = false
+        end
+        return true
+    end})
+    
+    -- Load shears from chest below if needed
+    add({action = "function", func = function(ctx)
+        if ctx.needShears then
+            turtle.select(SHEARS_SLOT)
+            turtle.suckDown(1)  -- Only take 1 pair of shears
+        end
+        return true
+    end})
     
     -- ===== LOAD WHEAT =====
     add({action = "turn", direction = "left", log = "Loading wheat..."})
@@ -131,19 +163,22 @@ local function buildSteps()
             add({action = "function", log = "Row " .. row .. "...", func = function() return true end})
         end
         
-        -- For each position in the row, place wheat down then move forward
+        -- For each position in the row, use shears then place wheat down, then move forward
         -- Row 1: 11 forward moves (12 positions total including start)
         -- Rows 2-14: 10 forward moves (11 positions total)
         local forwardMoves = (row == 1) and 11 or 10
         
         for i = 1, forwardMoves do
+            -- Use shears down at current position
+            add({action = "function", func = useShearsDown})
             -- Place wheat down at current position
             add({action = "function", func = placeWheatDown})
             -- Move forward
             add({action = "move", direction = "forward"})
         end
         
-        -- Place wheat at the final position of this row
+        -- Use shears and place wheat at the final position of this row
+        add({action = "function", func = useShearsDown})
         add({action = "function", func = placeWheatDown})
         
         -- At end of row, move to next row (except on last row)
