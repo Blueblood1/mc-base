@@ -165,29 +165,27 @@ local function buildSteps()
     -- ===== RETURN TO START =====
     add({action = "function", log = "Returning to start...", func = function() return true end})
     
-    -- After row 14 (even row), we're at the far end facing back toward start
-    -- We need to navigate back to the starting position
+    -- After row 14 (even row), we're at the far end facing toward the start
+    -- Turn left once
+    add({action = "turn", direction = "left"})
     
-    -- Turn right to face toward the starting column
-    add({action = "turn", direction = "right"})
-    
-    -- Move back through the columns (13 moves to get back to starting column)
+    -- Move forward 13 times to get back to starting column
     for i = 1, 13 do
         add({action = "move", direction = "forward"})
     end
     
-    -- Turn right to face the start position
+    -- Now right next to start, turn right
     add({action = "turn", direction = "right"})
     
-    -- Move forward 2 blocks to exit the grid and return to start position
+    -- Move forward twice
     add({action = "move", direction = "forward"})
     add({action = "move", direction = "forward"})
     
-    -- Turn 180 degrees to face original direction
+    -- Turn 180 degrees
     add({action = "turn", direction = "right"})
     add({action = "turn", direction = "right"})
     
-    -- Descend twice to return to starting height
+    -- Descend twice to return to starting position
     add({action = "move", direction = "down"})
     add({action = "move", direction = "down"})
     
