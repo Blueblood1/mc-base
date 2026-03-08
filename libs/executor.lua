@@ -48,8 +48,22 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
     if checkpoint and checkpoint.step then
         startStep = checkpoint.step
         context.facing = checkpoint.facing or 0
+        
         print("Resuming from step " .. startStep .. " of " .. #steps)
         print("Facing: " .. context.facing .. " (0=forward, 1=right, 2=back, 3=left)")
+        
+        -- Check if this was a movement action that might not have completed
+        if checkpoint.fuelBefore then
+            local currentFuel = turtle.getFuelLevel()
+            if currentFuel == checkpoint.fuelBefore then
+                -- Fuel unchanged - movement didn't happen, will retry
+                print("Movement didn't complete, retrying step " .. startStep)
+            else
+                -- Fuel changed - movement succeeded, skip to next step
+                print("Movement completed, continuing from step " .. (startStep + 1))
+                startStep = startStep + 1
+            end
+        end
     else
         print("Starting from beginning (" .. #steps .. " steps)")
     end
@@ -57,6 +71,24 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
     -- Execute steps
     for i = startStep, #steps do
         local step = steps[i]
+        
+        -- Determine if this is a movement action that needs fuel tracking
+        local isMovement = (step.action == "move")
+        local fuelBefore = nil
+        
+        if isMovement then
+            fuelBefore = turtle.getFuelLevel()
+        end
+        
+        -- Save checkpoint BEFORE executing step
+        -- Only save at designated checkpoint steps (or all if not specified)
+        if not checkpointSteps or checkpointSteps[i] then
+            Checkpoint.save({
+                step = i,
+                facing = context.facing,
+                fuelBefore = fuelBefore  -- nil for non-movement actions
+            })
+        end
         
         -- Log step
         if step.log then
@@ -87,14 +119,14 @@ function Executor.run(steps, context, checkpointFile, checkpointSteps)
             print("Error: " .. tostring(err))
             
             -- Save checkpoint at failed step for manual recovery
-            Checkpoint.save({step = i, error = err, facing = context.facing})
+            Checkpoint.save({
+                step = i,
+                error = err,
+                facing = context.facing,
+                fuelBefore = fuelBefore
+            })
             
             return false, "Step " .. i .. " failed: " .. tostring(err)
-        end
-        
-        -- Save checkpoint only at designated checkpoint steps (or all if not specified)
-        if not checkpointSteps or checkpointSteps[i] then
-            Checkpoint.save({step = i + 1, facing = context.facing})
         end
     end
     

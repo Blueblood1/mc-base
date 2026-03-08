@@ -41,36 +41,21 @@ local function buildSteps()
     end
     
     -- ===== LOAD RESOURCES =====
-    add({action = "function", log = "Loading resources...", func = function(ctx)
-        -- Load soul sand from left
-        turtle.turnLeft()
-        ctx.facing = (ctx.facing - 1) % 4
-        if ctx.facing < 0 then ctx.facing = ctx.facing + 4 end
-        
-        turtle.select(SOUL_SAND_SLOT)
-        for i = 1, 10 do turtle.suck(64) end
-        print("Loaded " .. turtle.getItemCount(SOUL_SAND_SLOT) .. " soul sand")
-        
-        turtle.turnRight()
-        ctx.facing = (ctx.facing + 1) % 4
-        
-        -- Load skulls from behind
-        turtle.turnRight()
-        ctx.facing = (ctx.facing + 1) % 4
-        turtle.turnRight()
-        ctx.facing = (ctx.facing + 1) % 4
-        
-        turtle.select(SKULL_SLOT)
-        for i = 1, 10 do turtle.suck(64) end
-        print("Loaded " .. turtle.getItemCount(SKULL_SLOT) .. " skulls")
-        
-        turtle.turnRight()
-        ctx.facing = (ctx.facing + 1) % 4
-        turtle.turnRight()
-        ctx.facing = (ctx.facing + 1) % 4
-        
-        return true
-    end})
+    add({action = "turn", direction = "left", log = "Loading soul sand..."})
+    add({action = "select", slot = SOUL_SAND_SLOT})
+    add({action = "suck", side = "front"})
+    add({action = "suck", side = "front"})
+    add({action = "suck", side = "front"})
+    add({action = "turn", direction = "right"})
+    
+    add({action = "turn", direction = "right", log = "Loading skulls..."})
+    add({action = "turn", direction = "right"})
+    add({action = "select", slot = SKULL_SLOT})
+    add({action = "suck", side = "front"})
+    add({action = "suck", side = "front"})
+    add({action = "suck", side = "front"})
+    add({action = "turn", direction = "right"})
+    add({action = "turn", direction = "right"})
     
     -- ===== CELL 1 =====
     addMoves("forward", 2, "Moving to door 1...")
