@@ -291,10 +291,13 @@ local function buildWitherInCell(cellNumber)
     Turtle.checkPauseState(sharedState, sendTelemetry)
     Version.log("Pause check complete, continuing...")
     
-    -- Turn around to face where we came from
-    Version.log("Turning around...")
-    turtle.turnRight()
-    turtle.turnRight()
+    -- Turn around to face where we came from (only for cell 1)
+    -- For cells 2+, we're already facing the correct direction from previous exit
+    if cellNumber == 1 then
+        Version.log("Turning around...")
+        turtle.turnRight()
+        turtle.turnRight()
+    end
     
     -- Ascend once (don't place soul sand yet - bottom is last)
     Version.log("Ascending 1 block...")
