@@ -137,12 +137,11 @@ local function buildSteps()
     add({action = "move", direction = "down"})  -- Descend back to starting level
     
     -- ===== LOAD WHEAT =====
-    add({action = "select", slot = WHEAT_SLOT, log = "Loading wheat..."})
-    add({action = "suck", side = "front"})
-    add({action = "turn", direction = "right"})
-    
-    -- Check if we have wheat (optional - can still shear without wheat)
-    add({action = "function", func = function(ctx)
+    add({action = "function", log = "Loading wheat...", func = function(ctx)
+        turtle.select(WHEAT_SLOT)
+        turtle.suck()
+        
+        -- Check if we got wheat
         local wheatCount = turtle.getItemCount(WHEAT_SLOT)
         if wheatCount == 0 then
             ctx.hasWheat = false
@@ -153,6 +152,7 @@ local function buildSteps()
         end
         return true
     end})
+    add({action = "turn", direction = "right"})
     
     -- ===== START FARMING =====
     -- Ascend twice
@@ -237,7 +237,7 @@ local function buildSteps()
     add({action = "turn", direction = "right", log = "Depositing wool..."})
     add({action = "move", direction = "up"})  -- Ascend to reach upper chest
     
-    -- Deposit all items except fuel, wheat, and shears
+    -- Deposit all items except fuel, wheat, and shears (slots 1-3)
     add({action = "function", func = function(ctx)
         for slot = 4, 16 do
             turtle.select(slot)
