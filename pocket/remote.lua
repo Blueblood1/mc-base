@@ -253,6 +253,11 @@ local function drawStatusTab()
             screen:setTextColor(rateColor)
             screen:write("Rate: " .. string.format("%+.0f/m", flowRate))
             
+            -- Time span label
+            screen:setCursorPos(1, 6)
+            screen:setTextColor(colors.gray)
+            screen:write("Last 2 min")
+            
             -- Draw full-screen graph
             local graphY = 7
             local graphHeight = h - graphY - 3
@@ -261,12 +266,19 @@ local function drawStatusTab()
                 local graphData = graphMode == "rate" and info.rateHistory or info.history
                 local graphTitle = graphMode == "rate" and "Rate (items/min)" or "Count"
                 
-                if #graphData > 0 then
+                -- Use only last 20 points for pocket computer (about 2 minutes)
+                local limitedData = {}
+                local startIdx = math.max(1, #graphData - 19)
+                for i = startIdx, #graphData do
+                    table.insert(limitedData, graphData[i])
+                end
+                
+                if #limitedData > 0 then
                     Graph.drawLineGraph(
                         screen.output,
                         1, graphY,
                         w, graphHeight,
-                        graphData,
+                        limitedData,
                         {
                             title = graphTitle,
                             color = colors.lime,
