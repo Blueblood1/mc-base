@@ -22,7 +22,8 @@ local TELEMETRY_INTERVAL = 5
 
 -- Workers that cannot be paused (must match central computer)
 local UNPAUSABLE_WORKERS = {
-    ["Wither Boss Farm"] = true
+    ["Wither Boss Farm"] = true,
+    ["RS Monitor"] = true
 }
 
 -- State

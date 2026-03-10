@@ -443,9 +443,27 @@ local function handleMessage(senderId, msgType, data)
                 }
             end
             
-            Network.send(senderId, Network.MSG_TYPES.TELEMETRY, {
+            -- Build response with workers and resources
+            local response = {
                 workers = workerData
-            })
+            }
+            
+            -- Add resource data if available
+            if ResourceTracker and resourceTracker then
+                response.resources = {}
+                local trackedItems = ResourceTracker.getTrackedItems(resourceTracker)
+                for _, itemName in ipairs(trackedItems) do
+                    local info = ResourceTracker.getResourceInfo(resourceTracker, itemName)
+                    if info then
+                        response.resources[itemName] = {
+                            count = info.count,
+                            displayName = info.displayName
+                        }
+                    end
+                end
+            end
+            
+            Network.send(senderId, Network.MSG_TYPES.TELEMETRY, response)
         end
     elseif msgType == Network.MSG_TYPES.HEARTBEAT then
         if turtles[senderId] then
