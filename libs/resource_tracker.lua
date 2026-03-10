@@ -111,6 +111,11 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
     local startData = resource.history[startIdx]
     local endData = resource.history[#resource.history]
     
+    -- Check if data is valid
+    if not startData or not endData or not startData.count or not endData.count then
+        return 0
+    end
+    
     local timeDiff = (endData.time - startData.time) / 1000  -- Convert to seconds
     if timeDiff == 0 then
         return 0
