@@ -234,12 +234,58 @@ local function drawStatusTab()
         screen:setCursorPos(1, 3)
         screen:setTextColor(colors.gray)
         screen:print("No resources tracked")
+    elseif selectedResource then
+        -- Full-screen graph view for selected resource
+        local info = ResourceTracker.getResourceInfo(resourceTracker, selectedResource)
+        if info then
+            -- Show resource name and stats at top
+            screen:setCursorPos(1, 3)
+            screen:setTextColor(colors.white)
+            screen:print(info.displayName:sub(1, w))
+            
+            screen:setCursorPos(1, 4)
+            screen:setTextColor(colors.cyan)
+            screen:write("Count: " .. string.format("%d", info.count or 0))
+            
+            local flowRate = info.flowRate or 0
+            local rateColor = flowRate >= 0 and colors.green or colors.red
+            screen:setCursorPos(1, 5)
+            screen:setTextColor(rateColor)
+            screen:write("Rate: " .. string.format("%+.0f/m", flowRate))
+            
+            -- Draw full-screen graph
+            local graphY = 7
+            local graphHeight = h - graphY - 3
+            
+            if graphHeight > 5 then
+                local graphData = graphMode == "rate" and info.rateHistory or info.history
+                local graphTitle = graphMode == "rate" and "Rate (items/min)" or "Count"
+                
+                if #graphData > 0 then
+                    Graph.drawLineGraph(
+                        screen.output,
+                        1, graphY,
+                        w, graphHeight,
+                        graphData,
+                        {
+                            title = graphTitle,
+                            color = colors.lime,
+                            showGrid = false
+                        }
+                    )
+                else
+                    screen:setCursorPos(1, graphY)
+                    screen:setTextColor(colors.gray)
+                    screen:print("No data yet...")
+                end
+            end
+        end
     else
         -- Show resource list (compact for narrow screen)
         local currentY = 3
         
         for i, itemName in ipairs(trackedItems) do
-            if currentY >= h - 6 then break end
+            if currentY >= h - 4 then break end
             
             local info = ResourceTracker.getResourceInfo(resourceTracker, itemName)
             if info then
@@ -270,37 +316,6 @@ local function drawStatusTab()
                 screen:write(string.format("%+.0f/m", flowRate))
                 
                 currentY = currentY + 1
-            end
-        end
-        
-        -- Show graph if resource selected
-        if selectedResource then
-            local info = ResourceTracker.getResourceInfo(resourceTracker, selectedResource)
-            if info then
-                local graphY = currentY + 1
-                local graphHeight = h - graphY - 3
-                
-                if graphHeight > 5 then
-                    -- Choose data based on graph mode
-                    local graphData = graphMode == "rate" and info.rateHistory or info.history
-                    local graphTitle = graphMode == "rate" 
-                        and (info.displayName:sub(1, 12) .. " /min") 
-                        or info.displayName:sub(1, 15)
-                    
-                    if #graphData > 0 then
-                        Graph.drawLineGraph(
-                            screen.output,
-                            1, graphY,
-                            w, graphHeight,
-                            graphData,
-                            {
-                                title = graphTitle,
-                                color = colors.lime,
-                                showGrid = false  -- Less clutter on small screen
-                            }
-                        )
-                    end
-                end
             end
         end
     end
