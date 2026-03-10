@@ -6,6 +6,16 @@ local UI = require("ui")
 local Version = require("version")
 local Updater = require("updater")
 
+-- Try to load optional resource tracking
+local ResourceTracker = nil
+local Graph = nil
+
+local success, module = pcall(require, "resource_tracker")
+if success then ResourceTracker = module end
+
+success, module = pcall(require, "graph")
+if success then Graph = module end
+
 -- Configuration
 local CENTRAL_HOSTNAME = "central"
 local TELEMETRY_INTERVAL = 5
@@ -20,6 +30,9 @@ local screen = nil
 local tabBar = nil
 local centralId = nil
 local workers = {}
+local resourceTracker = nil
+local selectedResource = nil
+local graphMode = "count"  -- "count" or "rate"
 local stats = {
     totalWorkers = 0,
     activeWorkers = 0,
@@ -189,19 +202,131 @@ end
 
 -- Draw Status tab (placeholder)
 local function drawStatusTab()
-    screen:clearButtons()
-    screen:setCursorPos(1, 3)
-    screen:setTextColor(colors.yellow)
-    screen:print("Status Tab")
-    screen:setTextColor(colors.white)
-    screen:print("")
-    screen:print("Coming soon...")
+    if not ResourceTracker or not Graph then
+        screen:clearButtons()
+        screen:setCursorPos(1, 3)
+        screen:setTextColor(colors.yellow)
+        screen:print("Resources Tab")
+        screen:setTextColor(colors.white)
+        screen:print("")
+        screen:print("Resource tracking")
+        screen:print("libraries not loaded")
+        
+        local w, h = screen:getSize()
+        local quitBtn = UI.Button:new(w - 7, h - 2, 7, 2, "QUIT", function()
+            error("User quit")
+        end, colors.red, colors.white)
+        screen:addButton(quitBtn)
+        screen:drawButtons()
+        return
+    end
     
     local w, h = screen:getSize()
-    local quitBtn = UI.Button:new(w - 7, h - 2, 7, 2, "QUIT", function()
+    screen:clearButtons()
+    
+    local trackedItems = ResourceTracker.getTrackedItems(resourceTracker)
+    
+    if #trackedItems == 0 then
+        screen:setCursorPos(1, 3)
+        screen:setTextColor(colors.gray)
+        screen:print("No resources tracked")
+    else
+        -- Show resource list
+        local currentY = 3
+        
+        for i, itemName in ipairs(trackedItems) do
+            if currentY >= h - 6 then break end
+            
+            local info = ResourceTracker.getResourceInfo(resourceTracker, itemName)
+            if info then
+                screen:setCursorPos(1, currentY)
+                screen:setTextColor(colors.white)
+                local displayName = info.displayName:sub(1, 15)
+                screen:write(displayName)
+                
+                screen:setCursorPos(17, currentY)
+                screen:setTextColor(colors.cyan)
+                screen:write(string.format("%d", info.count or 0))
+                
+                screen:setCursorPos(23, currentY)
+                local flowRate = info.flowRate or 0
+                local rateColor = flowRate >= 0 and colors.green or colors.red
+                screen:setTextColor(rateColor)
+                screen:write(string.format("%+.0f", flowRate))
+                
+                -- View button
+                local viewBtn = UI.Button:new(w - 2, currentY, 2, 1, ">", function()
+                    selectedResource = itemName
+                    updateDisplay()
+                end, colors.blue, colors.white)
+                screen:addButton(viewBtn)
+                
+                currentY = currentY + 1
+            end
+        end
+        
+        -- Show graph if resource selected
+        if selectedResource then
+            local info = ResourceTracker.getResourceInfo(resourceTracker, selectedResource)
+            if info then
+                local graphY = currentY + 1
+                local graphHeight = h - graphY - 3
+                
+                if graphHeight > 5 then
+                    -- Choose data based on graph mode
+                    local graphData = graphMode == "rate" and info.rateHistory or info.history
+                    local graphTitle = graphMode == "rate" 
+                        and (info.displayName:sub(1, 12) .. " /min") 
+                        or info.displayName:sub(1, 15)
+                    
+                    if #graphData > 0 then
+                        Graph.drawLineGraph(
+                            screen.output,
+                            1, graphY,
+                            w, graphHeight,
+                            graphData,
+                            {
+                                title = graphTitle,
+                                color = colors.lime,
+                                showGrid = false  -- Less clutter on small screen
+                            }
+                        )
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Bottom buttons
+    local btnY = h - 2
+    
+    if selectedResource then
+        -- Back button
+        local backBtn = UI.Button:new(1, btnY, 5, 2, "BACK", function()
+            selectedResource = nil
+            updateDisplay()
+        end, colors.blue, colors.white)
+        screen:addButton(backBtn)
+        
+        -- Graph mode toggles
+        local countBtn = UI.Button:new(7, btnY, 6, 2, "COUNT", function()
+            graphMode = "count"
+            updateDisplay()
+        end, graphMode == "count" and colors.green or colors.gray, colors.white)
+        screen:addButton(countBtn)
+        
+        local rateBtn = UI.Button:new(14, btnY, 5, 2, "RATE", function()
+            graphMode = "rate"
+            updateDisplay()
+        end, graphMode == "rate" and colors.green or colors.gray, colors.white)
+        screen:addButton(rateBtn)
+    end
+    
+    local quitBtn = UI.Button:new(w - 7, btnY, 7, 2, "QUIT", function()
         error("User quit")
     end, colors.red, colors.white)
     screen:addButton(quitBtn)
+    
     screen:drawButtons()
 end
 
@@ -223,6 +348,8 @@ local function updateDisplay()
         drawControlTab()
     elseif tabName == "Status" then
         drawStatusTab()
+    elseif tabName == "Resources" then
+        drawStatusTab()  -- Resources use the status tab function
     end
     
     screen:setTextColor(colors.white)
@@ -230,8 +357,7 @@ end
 
 -- Process worker data from central
 local function processWorkerData(data)
-    -- This would come from central computer
-    -- For now, we'll handle it when we get telemetry
+    -- Handle worker list
     if data.workers then
         local count = 0
         for _ in pairs(data.workers) do
@@ -254,10 +380,22 @@ local function processWorkerData(data)
             if worker.mode == "paused" then
                 stats.pausedWorkers = stats.pausedWorkers + 1
             else
-                stats.activeWorkers = stats.activeWorkers + 1
+                stats.activeWorkers = stats.activeTurtles + 1
             end
         end
         
+        updateDisplay()
+    end
+    
+    -- Handle resource data
+    if ResourceTracker and data.resources then
+        for itemName, itemData in pairs(data.resources) do
+            if not resourceTracker.resources[itemName] then
+                ResourceTracker.addItem(resourceTracker, itemName, itemData.displayName)
+            end
+            ResourceTracker.update(resourceTracker, itemName, itemData.count)
+        end
+        ResourceTracker.save(resourceTracker)
         updateDisplay()
     end
 end
@@ -314,9 +452,16 @@ local function main()
     -- Initialize UI
     screen = UI.Screen:new()
     
+    -- Load resource tracker if available
+    if ResourceTracker then
+        resourceTracker = ResourceTracker.load()
+        print("Resource tracking enabled")
+    end
+    
     -- Create tab bar
     local w, h = screen:getSize()
-    tabBar = UI.TabBar:new(1, 2, w, {"Control", "Status"})
+    local tabs = ResourceTracker and {"Control", "Resources"} or {"Control", "Status"}
+    tabBar = UI.TabBar:new(1, 2, w, tabs)
     tabBar.onTabChange = function(index, name)
         updateDisplay()
     end
