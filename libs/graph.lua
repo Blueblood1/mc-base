@@ -35,11 +35,26 @@ function Graph.drawLineGraph(output, x, y, width, height, data, options)
     end
     
     -- Find min/max values
-    local minVal = data[1].count
-    local maxVal = data[1].count
+    local minVal = nil
+    local maxVal = nil
+    
     for _, point in ipairs(data) do
-        if point.count < minVal then minVal = point.count end
-        if point.count > maxVal then maxVal = point.count end
+        if point and point.count then
+            if not minVal or point.count < minVal then
+                minVal = point.count
+            end
+            if not maxVal or point.count > maxVal then
+                maxVal = point.count
+            end
+        end
+    end
+    
+    -- If no valid data, show message
+    if not minVal or not maxVal then
+        output.setTextColor(colors.gray)
+        output.setCursorPos(x + math.floor(width / 2) - 7, y + math.floor(height / 2))
+        output.write("No data")
+        return
     end
     
     -- Add some padding to range
@@ -75,18 +90,21 @@ function Graph.drawLineGraph(output, x, y, width, height, data, options)
     for i = 1, #data do
         local point = data[i]
         
-        -- Calculate position
-        local px = x + math.floor((i - 1) / (#data - 1) * graphWidth)
-        local normalized = (point.count - minVal) / range
-        local py = y + 2 + graphHeight - math.floor(normalized * graphHeight)
-        
-        -- Clamp to graph area
-        if py < y + 2 then py = y + 2 end
-        if py >= y + height then py = y + height - 1 end
-        
-        -- Draw point
-        output.setCursorPos(px, py)
-        output.write("*")
+        -- Skip if point or count is nil
+        if point and point.count then
+            -- Calculate position
+            local px = x + math.floor((i - 1) / (#data - 1) * graphWidth)
+            local normalized = (point.count - minVal) / range
+            local py = y + 2 + graphHeight - math.floor(normalized * graphHeight)
+            
+            -- Clamp to graph area
+            if py < y + 2 then py = y + 2 end
+            if py >= y + height then py = y + height - 1 end
+            
+            -- Draw point
+            output.setCursorPos(px, py)
+            output.write("*")
+        end
     end
     
     -- Draw min/max labels
