@@ -85,7 +85,7 @@ end
 
 -- Calculate flow rate (items per minute)
 function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
-    windowSeconds = windowSeconds or 60  -- Default 1 minute
+    windowSeconds = windowSeconds or 15  -- Default 15 seconds for quick response
     
     local resource = tracker.resources[itemName]
     if not resource or #resource.history < 2 then
@@ -124,16 +124,9 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
     
     local countDiff = endData.count - startData.count
     
-    -- Extrapolate to full minute if we have less than a minute of data
-    if timeDiff < windowSeconds then
-        -- Calculate rate per second, then multiply by 60 for per minute
-        local ratePerSecond = countDiff / timeDiff
-        return ratePerSecond * 60
-    else
-        -- We have a full window, calculate normally
-        local rate = (countDiff / timeDiff) * 60  -- Items per minute
-        return rate
-    end
+    -- Always extrapolate to full minute
+    local ratePerSecond = countDiff / timeDiff
+    return ratePerSecond * 60
 end
 
 -- Get current count
@@ -167,6 +160,40 @@ function ResourceTracker.getHistory(tracker, itemName, maxPoints)
     return history
 end
 
+-- Get rate history for graphing (calculates rate at each point)
+function ResourceTracker.getRateHistory(tracker, itemName, maxPoints)
+    maxPoints = maxPoints or 60
+    
+    local resource = tracker.resources[itemName]
+    if not resource or #resource.history < 2 then
+        return {}
+    end
+    
+    local history = {}
+    local startIdx = math.max(1, #resource.history - maxPoints + 1)
+    
+    -- Calculate rate between each consecutive pair of points
+    for i = startIdx + 1, #resource.history do
+        local prevPoint = resource.history[i - 1]
+        local currPoint = resource.history[i]
+        
+        if prevPoint and currPoint and prevPoint.count and currPoint.count then
+            local timeDiff = (currPoint.time - prevPoint.time) / 1000  -- seconds
+            if timeDiff > 0 then
+                local countDiff = currPoint.count - prevPoint.count
+                local rate = (countDiff / timeDiff) * 60  -- items per minute
+                
+                table.insert(history, {
+                    time = currPoint.time,
+                    count = rate  -- Using 'count' field for consistency with graph code
+                })
+            end
+        end
+    end
+    
+    return history
+end
+
 -- Get all tracked items
 function ResourceTracker.getTrackedItems(tracker)
     return tracker.trackedItems
@@ -182,8 +209,9 @@ function ResourceTracker.getResourceInfo(tracker, itemName)
     return {
         displayName = resource.displayName,
         count = resource.lastCount,
-        flowRate = ResourceTracker.getFlowRate(tracker, itemName, 60),
-        history = ResourceTracker.getHistory(tracker, itemName, 60)
+        flowRate = ResourceTracker.getFlowRate(tracker, itemName, 15),
+        history = ResourceTracker.getHistory(tracker, itemName, 60),
+        rateHistory = ResourceTracker.getRateHistory(tracker, itemName, 60)
     }
 end
 

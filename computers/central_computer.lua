@@ -57,6 +57,7 @@ local resourceTracker = nil
 local rsMonitorId = nil
 local currentTab = 1  -- 1 = Workers, 2 = Resources
 local selectedResource = nil
+local graphMode = "count"  -- "count" or "rate"
 
 local stats = {
     totalTurtles = 0,
@@ -279,21 +280,35 @@ local function drawResourcesTab()
         -- Show graph if resource selected
         if selectedResource then
             local info = ResourceTracker.getResourceInfo(resourceTracker, selectedResource)
-            if info and #info.history > 0 then
+            if info then
                 local graphY = math.min(currentY + 2, screenHeight - 15)
                 local graphHeight = screenHeight - graphY - 5
                 
-                Graph.drawLineGraph(
-                    screen.output,
-                    1, graphY,
-                    screenWidth, graphHeight,
-                    info.history,
-                    {
-                        title = info.displayName,
-                        color = colors.lime,
-                        showGrid = true
-                    }
-                )
+                -- Choose data based on graph mode
+                local graphData = graphMode == "rate" and info.rateHistory or info.history
+                local graphTitle = graphMode == "rate" 
+                    and (info.displayName .. " (Rate/min)") 
+                    or (info.displayName .. " (Count)")
+                
+                if #graphData > 0 then
+                    Graph.drawLineGraph(
+                        screen.output,
+                        1, graphY,
+                        screenWidth, graphHeight,
+                        graphData,
+                        {
+                            title = graphTitle,
+                            color = colors.lime,
+                            showGrid = true
+                        }
+                    )
+                    
+                    -- Add time label
+                    screen:setCursorPos(1, graphY + graphHeight)
+                    screen:setTextColor(colors.gray)
+                    local timeSpan = #graphData * 5  -- 5 seconds per point
+                    screen:write(string.format("Last %d seconds", timeSpan))
+                end
             end
         end
     end
@@ -307,7 +322,20 @@ local function drawResourcesTab()
     end, colors.blue, colors.white)
     screen:addButton(backBtn)
     
-    local quitBtn = UI.Button:new(14, buttonY, 8, 2, "QUIT", function()
+    -- Graph mode toggle buttons (only show if resource selected)
+    if selectedResource then
+        local countBtn = UI.Button:new(14, buttonY, 8, 2, "COUNT", function()
+            graphMode = "count"
+        end, graphMode == "count" and colors.green or colors.gray, colors.white)
+        screen:addButton(countBtn)
+        
+        local rateBtn = UI.Button:new(24, buttonY, 8, 2, "RATE", function()
+            graphMode = "rate"
+        end, graphMode == "rate" and colors.green or colors.gray, colors.white)
+        screen:addButton(rateBtn)
+    end
+    
+    local quitBtn = UI.Button:new(screenWidth - 8, buttonY, 8, 2, "QUIT", function()
         error("User quit")
     end, colors.red, colors.white)
     screen:addButton(quitBtn)
