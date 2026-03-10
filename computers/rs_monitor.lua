@@ -38,7 +38,7 @@ local sharedState = {
 
 -- Find RS Bridge
 local function findRSBridge()
-    local bridge = peripheral.find("rsBridge")
+    local bridge = peripheral.find("rs_bridge")
     if not bridge then
         print("ERROR: No RS Bridge found!")
         print("Please connect this computer to an RS Bridge")
