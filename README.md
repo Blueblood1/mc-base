@@ -13,6 +13,11 @@ A complete automation system for ComputerCraft with central monitoring, telemetr
 - 🚨 Alert system for errors and warnings
 - 💾 State persistence - resumes after restarts
 - 🏗️ Build number tracking
+- 📈 **NEW: Resource tracking with Refined Storage integration**
+  - Real-time item quantity monitoring
+  - Flow rate calculations (items/minute)
+  - Historical graphs (1 hour of data)
+  - Track multiple resources simultaneously
 
 ## Quick Start
 
@@ -277,6 +282,7 @@ parallel.waitForAll(mainLoop, commandListener)
 - HTTP API enabled
 - Wireless modems (ender modems recommended)
 - Minecraft 1.21+ (for ATM10)
+- **Optional: Advanced Peripherals** (for resource tracking with Refined Storage)
 
 ## Troubleshooting
 
@@ -294,6 +300,31 @@ parallel.waitForAll(mainLoop, commandListener)
 - BUILD_NUMBER file missing or corrupted
 - Run installer to restore
 - Check file isn't conflicting with version.lua (case-sensitive filesystems)
+
+**Resource tracking not showing:**
+- Ensure Advanced Peripherals mod is installed
+- Place RS Monitor computer next to RS Bridge
+- Check RS Bridge is connected to RS network
+- Wait 5-10 seconds for first data poll
+
+## Resource Tracking (NEW!)
+
+Track items in your Refined Storage system with real-time graphs and flow rates.
+
+**Quick Setup:**
+1. Place computer next to RS Bridge
+2. Run installer, select option 4 (rs_monitor)
+3. Edit top of `rs_monitor.lua` to specify items in TRACKED_ITEMS list
+4. Reboot RS Monitor computer
+5. Central computer will auto-update on next reboot
+
+**See:** `RESOURCE_TRACKING_QUICKSTART.md` for detailed setup
+
+**Features:**
+- Real-time item counts
+- Flow rates (items/minute)
+- Historical graphs (1 hour)
+- Automatic data persistence
 
 ## License
 

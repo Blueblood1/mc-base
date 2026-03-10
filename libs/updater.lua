@@ -53,6 +53,8 @@ Updater.MANIFEST = {
     ["checkpoint.lua"] = "libs/checkpoint.lua",
     ["executor.lua"] = "libs/executor.lua",
     ["version.lua"] = "libs/version.lua",
+    ["resource_tracker.lua"] = "libs/resource_tracker.lua",
+    ["graph.lua"] = "libs/graph.lua",
     
     -- Central Computer
     ["central_computer.lua"] = "computers/central_computer.lua",
@@ -60,6 +62,7 @@ Updater.MANIFEST = {
     -- Computers
     ["wither_mob_farm.lua"] = "computers/wither_mob_farm.lua",
     ["wither_boss_farm.lua"] = "computers/wither_boss_farm.lua",
+    ["rs_monitor.lua"] = "computers/rs_monitor.lua",
     
     -- Pocket Computer
     ["remote.lua"] = "pocket/remote.lua",
@@ -231,7 +234,9 @@ function Updater.updateLocal()
         ["updater.lua"] = true,
         ["version.lua"] = true,
         ["state.lua"] = true,
-        ["ui.lua"] = true
+        ["ui.lua"] = true,
+        ["resource_tracker.lua"] = true,
+        ["graph.lua"] = true
     }
     
     for localFilename, githubPath in pairs(Updater.MANIFEST) do
