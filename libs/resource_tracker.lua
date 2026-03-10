@@ -104,6 +104,7 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
         end
     end
     
+    -- If we don't have data going back the full window, use oldest available
     if not startIdx then
         startIdx = 1
     end
@@ -122,9 +123,17 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
     end
     
     local countDiff = endData.count - startData.count
-    local rate = (countDiff / timeDiff) * 60  -- Items per minute
     
-    return rate
+    -- Extrapolate to full minute if we have less than a minute of data
+    if timeDiff < windowSeconds then
+        -- Calculate rate per second, then multiply by 60 for per minute
+        local ratePerSecond = countDiff / timeDiff
+        return ratePerSecond * 60
+    else
+        -- We have a full window, calculate normally
+        local rate = (countDiff / timeDiff) * 60  -- Items per minute
+        return rate
+    end
 end
 
 -- Get current count

@@ -64,17 +64,20 @@ local function sendTelemetry(rsBridge, trackedItems)
         local item = rsBridge.getItem({name = itemName})
         if item then
             data.resources[itemName] = {
-                count = item.amount,
+                count = item.count,
                 displayName = item.displayName
             }
+            Version.log("Found " .. itemName .. ": " .. item.count)
         else
             data.resources[itemName] = {
                 count = 0,
                 displayName = itemName
             }
+            Version.log("Item not found: " .. itemName)
         end
     end
     
+    Version.log("Sending telemetry with " .. #trackedItems .. " items")
     Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, data)
 end
 
