@@ -258,12 +258,13 @@ local function drawResourcesTab()
                 
                 screen:setCursorPos(27, currentY)
                 screen:setTextColor(colors.cyan)
-                screen:write(string.format("%d", info.count))
+                screen:write(string.format("%d", info.count or 0))
                 
                 screen:setCursorPos(38, currentY)
-                local rateColor = info.flowRate >= 0 and colors.green or colors.red
+                local flowRate = info.flowRate or 0
+                local rateColor = flowRate >= 0 and colors.green or colors.red
                 screen:setTextColor(rateColor)
-                screen:write(string.format("%+.1f/min", info.flowRate))
+                screen:write(string.format("%+.1f/min", flowRate))
                 
                 -- View button
                 local viewBtn = UI.Button:new(screenWidth - 8, currentY, 7, 1, "VIEW", function()
