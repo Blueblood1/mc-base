@@ -232,7 +232,7 @@ local function drawStatusTab()
         screen:setTextColor(colors.gray)
         screen:print("No resources tracked")
     else
-        -- Show resource list
+        -- Show resource list (compact for narrow screen)
         local currentY = 3
         
         for i, itemName in ipairs(trackedItems) do
@@ -240,27 +240,31 @@ local function drawStatusTab()
             
             local info = ResourceTracker.getResourceInfo(resourceTracker, itemName)
             if info then
+                -- Line 1: Name
                 screen:setCursorPos(1, currentY)
                 screen:setTextColor(colors.white)
-                local displayName = info.displayName:sub(1, 15)
+                local displayName = info.displayName:sub(1, w - 3)
                 screen:write(displayName)
                 
-                screen:setCursorPos(17, currentY)
-                screen:setTextColor(colors.cyan)
-                screen:write(string.format("%d", info.count or 0))
-                
-                screen:setCursorPos(23, currentY)
-                local flowRate = info.flowRate or 0
-                local rateColor = flowRate >= 0 and colors.green or colors.red
-                screen:setTextColor(rateColor)
-                screen:write(string.format("%+.0f", flowRate))
-                
-                -- View button
-                local viewBtn = UI.Button:new(w - 2, currentY, 2, 1, ">", function()
+                -- View button on same line
+                local viewBtn = UI.Button:new(w - 1, currentY, 1, 1, ">", function()
                     selectedResource = itemName
                     updateDisplay()
                 end, colors.blue, colors.white)
                 screen:addButton(viewBtn)
+                
+                currentY = currentY + 1
+                
+                -- Line 2: Count and Rate
+                screen:setCursorPos(1, currentY)
+                screen:setTextColor(colors.cyan)
+                screen:write(string.format("%d", info.count or 0))
+                
+                local flowRate = info.flowRate or 0
+                local rateColor = flowRate >= 0 and colors.green or colors.red
+                screen:setCursorPos(w - 6, currentY)
+                screen:setTextColor(rateColor)
+                screen:write(string.format("%+.0f/m", flowRate))
                 
                 currentY = currentY + 1
             end
