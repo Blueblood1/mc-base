@@ -380,7 +380,7 @@ local function processWorkerData(data)
             if worker.mode == "paused" then
                 stats.pausedWorkers = stats.pausedWorkers + 1
             else
-                stats.activeWorkers = stats.activeTurtles + 1
+                stats.activeWorkers = stats.activeWorkers + 1
             end
         end
         
