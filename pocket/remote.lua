@@ -40,6 +40,9 @@ local stats = {
     pausedWorkers = 0
 }
 
+-- Forward declaration
+local updateDisplay
+
 -- Send command to central computer
 local function sendCommand(command, data)
     if not centralId then
@@ -336,7 +339,7 @@ local function drawStatusTab()
 end
 
 -- Update display based on active tab
-local function updateDisplay()
+updateDisplay = function()
     screen:clear()
     
     -- Draw header
