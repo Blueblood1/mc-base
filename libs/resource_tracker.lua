@@ -85,7 +85,7 @@ end
 
 -- Calculate flow rate (items per minute)
 function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
-    windowSeconds = windowSeconds or 15  -- Default 15 seconds for quick response
+    windowSeconds = windowSeconds or 60  -- Increased default to 60 seconds for variable intervals
     
     local resource = tracker.resources[itemName]
     if not resource or #resource.history < 2 then
@@ -109,6 +109,11 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
         startIdx = 1
     end
     
+    -- Need at least 2 points to calculate rate
+    if startIdx >= #resource.history then
+        return 0
+    end
+    
     local startData = resource.history[startIdx]
     local endData = resource.history[#resource.history]
     
@@ -118,13 +123,15 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
     end
     
     local timeDiff = (endData.time - startData.time) / 1000  -- Convert to seconds
-    if timeDiff == 0 then
+    
+    -- Need at least 10 seconds of data for meaningful rate
+    if timeDiff < 10 then
         return 0
     end
     
     local countDiff = endData.count - startData.count
     
-    -- Always extrapolate to full minute
+    -- Calculate rate per minute
     local ratePerSecond = countDiff / timeDiff
     return ratePerSecond * 60
 end
