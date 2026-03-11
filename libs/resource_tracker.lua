@@ -85,15 +85,20 @@ end
 
 -- Calculate flow rate (items per minute)
 function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
-    windowSeconds = windowSeconds or 60  -- Increased default to 60 seconds for variable intervals
+    windowSeconds = windowSeconds or 60  -- Default 60 seconds for variable intervals
     
     local resource = tracker.resources[itemName]
     if not resource or #resource.history < 2 then
         return 0
     end
     
-    local now = os.epoch("utc")
-    local windowStart = now - (windowSeconds * 1000)
+    -- Use the most recent data point's time, not current time
+    local endData = resource.history[#resource.history]
+    if not endData or not endData.time then
+        return 0
+    end
+    
+    local windowStart = endData.time - (windowSeconds * 1000)
     
     -- Find first data point in window
     local startIdx = nil
@@ -115,10 +120,9 @@ function ResourceTracker.getFlowRate(tracker, itemName, windowSeconds)
     end
     
     local startData = resource.history[startIdx]
-    local endData = resource.history[#resource.history]
     
     -- Check if data is valid
-    if not startData or not endData or not startData.count or not endData.count then
+    if not startData or not startData.count or not endData.count then
         return 0
     end
     
