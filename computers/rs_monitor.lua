@@ -10,19 +10,27 @@ local Worker = require("worker")
 -- CONFIGURATION - Edit items to track here
 -- ============================================
 local TRACKED_ITEMS = {
-    -- Mystical Agriculture
-    "mysticalagriculture:inferium_essence",
-
-    "mysticalagriculture:certus_quartz_essence",
+    -- Format 1: Table with custom interval (in seconds)
+    {
+        name = "mysticalagriculture:inferium_essence",
+        interval = 5  -- Poll every 5 seconds
+    },
+    {
+        name = "mysticalagriculture:certus_quartz_essence",
+        interval = 5
+    },
     
-    -- Add more items here in format: "modid:item_name"
-    -- Examples:
+    -- Format 2: Simple string uses default interval (5 seconds)
     -- "minecraft:diamond",
-    -- "minecraft:iron_ingot",
-    -- "thermal:iron_gear",
+    
+    -- Example: Slow-growing items can use longer intervals
+    -- {
+    --     name = "minecraft:wheat",
+    --     interval = 30  -- Only check every 30 seconds
+    -- },
 }
 
-local POLL_INTERVAL = 5  -- Poll RS every 5 seconds
+local DEFAULT_INTERVAL = 5  -- Default poll interval in seconds
 local WORKER_NAME = "RS Monitor"
 -- ============================================
 
@@ -45,9 +53,49 @@ local function findRSBridge()
     return bridge
 end
 
--- Send telemetry
-local function sendTelemetry(rsBridge, trackedItems)
+-- Parse tracked items config into normalized format
+local function parseTrackedItems()
+    local items = {}
+    for _, item in ipairs(TRACKED_ITEMS) do
+        if type(item) == "string" then
+            -- Simple string format, use default interval
+            table.insert(items, {
+                name = item,
+                interval = DEFAULT_INTERVAL,
+                lastPoll = 0
+            })
+        elseif type(item) == "table" and item.name then
+            -- Table format with custom interval
+            table.insert(items, {
+                name = item.name,
+                interval = item.interval or DEFAULT_INTERVAL,
+                lastPoll = 0
+            })
+        end
+    end
+    return items
+end
+
+-- Send telemetry for items that need polling
+local function sendTelemetry(rsBridge, trackedItems, now)
     if not sharedState.centralConnected then
+        return
+    end
+    
+    local itemsToPoll = {}
+    local shouldSend = false
+    
+    -- Check which items need polling
+    for _, item in ipairs(trackedItems) do
+        local timeSinceLastPoll = (now - item.lastPoll) / 1000  -- Convert to seconds
+        if timeSinceLastPoll >= item.interval then
+            table.insert(itemsToPoll, item)
+            item.lastPoll = now
+            shouldSend = true
+        end
+    end
+    
+    if not shouldSend then
         return
     end
     
@@ -57,26 +105,28 @@ local function sendTelemetry(rsBridge, trackedItems)
         resources = {}
     }
     
-    -- Get counts for tracked items
-    for _, itemName in ipairs(trackedItems) do
-        local item = rsBridge.getItem({name = itemName})
-        if item then
-            data.resources[itemName] = {
-                count = item.count,
-                displayName = item.displayName
+    -- Get counts for items that need polling
+    for _, item in ipairs(itemsToPoll) do
+        local rsItem = rsBridge.getItem({name = item.name})
+        if rsItem then
+            data.resources[item.name] = {
+                count = rsItem.count,
+                displayName = rsItem.displayName
             }
-            Version.log("Found " .. itemName .. ": " .. item.count)
+            Version.log("Polled " .. item.name .. ": " .. rsItem.count)
         else
-            data.resources[itemName] = {
+            data.resources[item.name] = {
                 count = 0,
-                displayName = itemName
+                displayName = item.name
             }
-            Version.log("Item not found: " .. itemName)
+            Version.log("Item not found: " .. item.name)
         end
     end
     
-    Version.log("Sending telemetry with " .. #trackedItems .. " items")
-    Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, data)
+    if next(data.resources) then
+        Version.log("Sending telemetry with " .. #itemsToPoll .. " items")
+        Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, data)
+    end
 end
 
 -- Send alert
@@ -100,26 +150,32 @@ local function mainLoop()
     Version.log("RS Bridge found, starting monitoring...")
     sendAlert("RS Monitor started")
     
-    -- Use configured tracked items
-    local trackedItems = TRACKED_ITEMS
-    local lastPoll = 0
+    -- Parse tracked items configuration
+    local trackedItems = parseTrackedItems()
+    Version.log("Tracking " .. #trackedItems .. " items")
+    
+    -- Log intervals for each item
+    for _, item in ipairs(trackedItems) do
+        Version.log(item.name .. " -> " .. item.interval .. "s interval")
+    end
     
     while not sharedState.stopRequested do
         local now = os.epoch("utc")
         
-        -- Poll RS at interval
-        if (now - lastPoll) >= (POLL_INTERVAL * 1000) then
-            if sharedState.operatingMode == "running" then
-                sendTelemetry(rsBridge, trackedItems)
-            end
-            lastPoll = now
+        -- Poll items based on their individual intervals
+        if sharedState.operatingMode == "running" then
+            sendTelemetry(rsBridge, trackedItems, now)
         end
         
         -- Check for commands from central
         local senderId, msgType, data = Network.receive(0.5)
         if senderId and msgType == Network.MSG_TYPES.COMMAND then
             if data.command == "report_status" then
-                sendTelemetry(rsBridge, trackedItems)
+                -- Force poll all items immediately
+                for _, item in ipairs(trackedItems) do
+                    item.lastPoll = 0
+                end
+                sendTelemetry(rsBridge, trackedItems, os.epoch("utc"))
             end
         end
         
