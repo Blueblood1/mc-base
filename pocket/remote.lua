@@ -355,6 +355,16 @@ local function drawStatusTab()
             updateDisplay()
         end, graphMode == "rate" and colors.green or colors.gray, colors.white)
         screen:addButton(rateBtn)
+    else
+        -- Clear button when viewing list
+        local clearBtn = UI.Button:new(1, btnY, 6, 2, "CLEAR", function()
+            if ResourceTracker and fs.exists(ResourceTracker.DATA_FILE) then
+                fs.delete(ResourceTracker.DATA_FILE)
+                resourceTracker = ResourceTracker.new()
+            end
+            updateDisplay()
+        end, colors.orange, colors.white)
+        screen:addButton(clearBtn)
     end
     
     local quitBtn = UI.Button:new(w - 7, btnY, 7, 2, "QUIT", function()

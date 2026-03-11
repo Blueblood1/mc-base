@@ -333,6 +333,29 @@ local function drawResourcesTab()
             graphMode = "rate"
         end, graphMode == "rate" and colors.green or colors.gray, colors.white)
         screen:addButton(rateBtn)
+        
+        local clearBtn = UI.Button:new(34, buttonY, 8, 2, "CLEAR", function()
+            -- Delete resource data file and reset tracker
+            if fs.exists(ResourceTracker.DATA_FILE) then
+                fs.delete(ResourceTracker.DATA_FILE)
+            end
+            resourceTracker = ResourceTracker.new()
+            selectedResource = nil
+            Version.log("Resource data cleared")
+        end, colors.orange, colors.white)
+        screen:addButton(clearBtn)
+    else
+        -- Show clear button when no resource selected
+        local clearBtn = UI.Button:new(14, buttonY, 8, 2, "CLEAR", function()
+            -- Delete resource data file and reset tracker
+            if fs.exists(ResourceTracker.DATA_FILE) then
+                fs.delete(ResourceTracker.DATA_FILE)
+            end
+            resourceTracker = ResourceTracker.new()
+            selectedResource = nil
+            Version.log("Resource data cleared")
+        end, colors.orange, colors.white)
+        screen:addButton(clearBtn)
     end
     
     local quitBtn = UI.Button:new(screenWidth - 8, buttonY, 8, 2, "QUIT", function()
