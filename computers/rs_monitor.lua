@@ -13,11 +13,11 @@ local TRACKED_ITEMS = {
     -- Format 1: Table with custom interval (in seconds)
     {
         name = "mysticalagriculture:inferium_essence",
-        interval = 5  -- Poll every 5 seconds
+        interval = 60  -- Poll every 5 seconds
     },
     {
         name = "mysticalagriculture:certus_quartz_essence",
-        interval = 5
+        interval = 60
     },
     
     -- Format 2: Simple string uses default interval (5 seconds)
