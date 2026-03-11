@@ -12,10 +12,8 @@ local Worker = require("worker")
 local TRACKED_ITEMS = {
     -- Mystical Agriculture
     "mysticalagriculture:inferium_essence",
-    "mysticalagriculture:prudentium_essence",
-    "mysticalagriculture:tertium_essence",
-    "mysticalagriculture:imperium_essence",
-    "mysticalagriculture:supremium_essence",
+
+    "mysticalagriculture:certus_quartz_essence",
     
     -- Add more items here in format: "modid:item_name"
     -- Examples:
