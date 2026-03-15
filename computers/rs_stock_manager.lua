@@ -11,7 +11,7 @@ local Worker = require("worker")
 -- ============================================
 local STOCK_ITEMS = {
     -- { name = "item:id", min = amount }
-    -- { name = "thermal:diamond_dust", min = 256 }
+    { name = "thermal:diamond_dust", min = 256 }
 }
 
 local CHECK_INTERVAL = 30   -- Seconds between stock checks
