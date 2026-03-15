@@ -96,7 +96,7 @@ local function exportItem(bridge, item)
 end
 
 local function scanAndFilter(bridge)
-    local items = bridge.listItems()
+    local items = bridge.getItems()
     if not items then
         Version.log("WARNING: listItems() returned nil")
         return
