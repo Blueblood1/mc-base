@@ -58,7 +58,7 @@ local function checkAndRestock(bridge)
 
     for _, item in ipairs(STOCK_ITEMS) do
         local rsItem = bridge.getItem({name = item.name})
-        local current = rsItem and rsItem.amount or 0
+        local current = rsItem and rsItem.count or 0
         local needed  = item.min - current
 
         local status = {
