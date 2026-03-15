@@ -1,6 +1,6 @@
--- RS NBT Filter Computer
--- Scans Refined Storage for items with NBT data (via components field)
--- and exports them to an adjacent chest.
+-- RS NBT Report Computer
+-- Scans Refined Storage and reports what percentage of item types
+-- and total item counts have NBT data (components field).
 
 local Network = require("network")
 local Updater = require("updater")
@@ -10,14 +10,8 @@ local Worker = require("worker")
 -- ============================================
 -- CONFIGURATION
 -- ============================================
-local NBT_CHEST_SIDE = "top"   -- Side NBT output chest is on (relative to RS Bridge)
-local SCAN_INTERVAL  = 10      -- Seconds between scans
-local WORKER_NAME    = "RS NBT Filter"
-
--- Optional: restrict to specific item names. Empty = catch all NBT items.
-local ITEM_NAME_FILTER = {
-    -- "minecraft:enchanted_book",
-}
+local SCAN_INTERVAL = 30   -- Seconds between scans
+local WORKER_NAME   = "RS NBT Report"
 -- ============================================
 
 local sharedState = {
@@ -27,24 +21,12 @@ local sharedState = {
     stopRequested = false
 }
 
-local stats = { totalMoved = 0 }
+local lastReport = nil
 
 local function findRSBridge()
     local bridge = peripheral.find("rs_bridge")
     if not bridge then Version.log("ERROR: No RS Bridge found!") end
     return bridge
-end
-
-local function hasComponents(item)
-    return item.components ~= nil and next(item.components) ~= nil
-end
-
-local function nameFilterMatches(itemName)
-    if #ITEM_NAME_FILTER == 0 then return true end
-    for _, name in ipairs(ITEM_NAME_FILTER) do
-        if itemName == name then return true end
-    end
-    return false
 end
 
 local function sendAlert(message, level)
@@ -56,56 +38,93 @@ local function sendAlert(message, level)
 end
 
 local function sendTelemetry()
-    if not sharedState.centralConnected then return end
+    if not sharedState.centralConnected or not lastReport then return end
     Network.send(sharedState.centralId, Network.MSG_TYPES.TELEMETRY, {
         name = WORKER_NAME,
         status = sharedState.operatingMode,
-        totalMoved = stats.totalMoved
+        report = lastReport
     })
 end
 
-local function scanAndFilter(bridge)
+local function printReport(report)
+    term.clear()
+    term.setCursorPos(1, 1)
+    Version.printBanner(WORKER_NAME)
+    print("")
+    print("=== NBT Item Report ===")
+    print("")
+    print("Item types:  " .. report.nbtTypes .. " / " .. report.totalTypes ..
+          " (" .. report.typePercent .. "%)")
+    print("Total items: " .. report.nbtCount .. " / " .. report.totalCount ..
+          " (" .. report.countPercent .. "%)")
+    print("")
+    print("Top NBT item types:")
+    for i, item in ipairs(report.topItems) do
+        print("  " .. i .. ". " .. item.name .. " x" .. item.count)
+        if i >= 10 then break end
+    end
+    print("")
+    print("Last scan: " .. report.time)
+    print("Next scan in " .. SCAN_INTERVAL .. "s")
+end
+
+local function scan(bridge)
     local items = bridge.getItems()
     if not items then
         Version.log("WARNING: getItems() returned nil")
         return
     end
 
-    local nbtItems = {}
+    local totalTypes = #items
+    local totalCount = 0
+    local nbtTypes   = 0
+    local nbtCount   = 0
+    local nbtItems   = {}
+
     for _, item in ipairs(items) do
-        if hasComponents(item) and nameFilterMatches(item.name) then
+        totalCount = totalCount + item.count
+        if item.components and next(item.components) ~= nil then
+            nbtTypes = nbtTypes + 1
+            nbtCount = nbtCount + item.count
             table.insert(nbtItems, item)
         end
     end
 
-    Version.log("Scan: " .. #items .. " types, " .. #nbtItems .. " with components")
+    -- Sort top NBT items by count descending
+    table.sort(nbtItems, function(a, b) return a.count > b.count end)
 
-    for _, item in ipairs(nbtItems) do
-        local moved = bridge.exportItem({name = item.name, count = item.count}, NBT_CHEST_SIDE)
-        if moved and moved > 0 then
-            Version.log("Exported: " .. item.name .. " x" .. moved)
-            stats.totalMoved = stats.totalMoved + moved
-        else
-            Version.log("WARN: Could not export " .. item.name .. " (chest full?)")
-            sendAlert("NBT chest may be full - " .. item.name, "warning")
-        end
-    end
+    local typePercent  = totalTypes > 0 and math.floor(nbtTypes / totalTypes * 100) or 0
+    local countPercent = totalCount > 0 and math.floor(nbtCount / totalCount * 100) or 0
 
-    if #nbtItems > 0 then
-        sendTelemetry()
-    end
+    -- Format time
+    local epoch = os.epoch("local")
+    local s = math.floor(epoch / 1000)
+    local time = string.format("%02d:%02d:%02d", math.floor(s/3600)%24, math.floor(s%3600/60), s%60)
+
+    lastReport = {
+        totalTypes    = totalTypes,
+        nbtTypes      = nbtTypes,
+        typePercent   = typePercent,
+        totalCount    = totalCount,
+        nbtCount      = nbtCount,
+        countPercent  = countPercent,
+        topItems      = nbtItems,
+        time          = time
+    }
+
+    printReport(lastReport)
+    sendTelemetry()
 end
 
 local function mainLoop()
     local bridge = findRSBridge()
     if not bridge then return end
 
-    Version.log("Ready. Exporting NBT items to: " .. NBT_CHEST_SIDE)
     sendAlert(WORKER_NAME .. " started")
 
     while not sharedState.stopRequested do
         if sharedState.operatingMode == "running" then
-            local ok, err = pcall(scanAndFilter, bridge)
+            local ok, err = pcall(scan, bridge)
             if not ok then
                 Version.log("ERROR: " .. tostring(err))
                 sendAlert("Scan error: " .. tostring(err), "error")
