@@ -27,8 +27,8 @@ local sharedState = {
     stopRequested = false
 }
 
--- Tracks active craft task ids per item name
-local activeTasks = {}  -- item name -> task id
+-- Tracks active craft task objects per item name
+local activeTasks = {}  -- item name -> task object
 
 local function findRSBridge()
     local bridge = peripheral.find("rs_bridge")
@@ -53,22 +53,7 @@ local function sendTelemetry(statuses)
     })
 end
 
--- Returns a set of active task ids
-local function getActiveTaskIds(bridge)
-    local tasks = bridge.getCraftingTasks()
-    local ids = {}
-    if tasks then
-        for _, task in ipairs(tasks) do
-            if task.id then
-                ids[task.id] = true
-            end
-        end
-    end
-    return ids
-end
-
 local function checkAndRestock(bridge)
-    local activeIds = getActiveTaskIds(bridge)
     local statuses = {}
 
     for _, item in ipairs(STOCK_ITEMS) do
@@ -84,25 +69,22 @@ local function checkAndRestock(bridge)
         }
 
         if needed > 0 then
-            -- Check if our previously requested task is still running
-            local existingTaskId = activeTasks[item.name]
-            if existingTaskId and activeIds[existingTaskId] then
-                Version.log(item.name .. ": " .. current .. "/" .. item.min .. " (crafting #" .. existingTaskId .. ")")
+            local existingTask = activeTasks[item.name]
+            local stillRunning = existingTask and
+                                 not existingTask.isDone() and
+                                 not existingTask.isCanceled()
+
+            if stillRunning then
+                Version.log(item.name .. ": " .. current .. "/" .. item.min ..
+                    " (crafting #" .. existingTask.getId() .. ")")
                 status.crafting = true
             else
-                -- No active task, request a new craft
                 activeTasks[item.name] = nil
                 Version.log(item.name .. ": " .. current .. "/" .. item.min .. " - requesting " .. needed)
                 local task, err = bridge.craftItem({name = item.name, count = needed})
-                Version.log("  craftItem raw: task=" .. tostring(task) .. " err=" .. tostring(err))
-                if type(task) == "table" then
-                    for k, v in pairs(task) do
-                        Version.log("    task." .. tostring(k) .. " = " .. tostring(v))
-                    end
-                end
-                if task and task.id then
-                    activeTasks[item.name] = task.id
-                    Version.log("  Craft job #" .. task.id .. " started")
+                if task then
+                    activeTasks[item.name] = task
+                    Version.log("  Craft job #" .. task.getId() .. " started")
                     status.crafting = true
                 else
                     Version.log("  WARN: Craft failed - " .. tostring(err))
@@ -111,7 +93,7 @@ local function checkAndRestock(bridge)
                 end
             end
         else
-            activeTasks[item.name] = nil  -- clear task once stock is satisfied
+            activeTasks[item.name] = nil
             Version.log(item.name .. ": " .. current .. "/" .. item.min .. " ok")
         end
 
