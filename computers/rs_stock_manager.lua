@@ -94,6 +94,12 @@ local function checkAndRestock(bridge)
                 activeTasks[item.name] = nil
                 Version.log(item.name .. ": " .. current .. "/" .. item.min .. " - requesting " .. needed)
                 local task, err = bridge.craftItem({name = item.name, count = needed})
+                Version.log("  craftItem raw: task=" .. tostring(task) .. " err=" .. tostring(err))
+                if type(task) == "table" then
+                    for k, v in pairs(task) do
+                        Version.log("    task." .. tostring(k) .. " = " .. tostring(v))
+                    end
+                end
                 if task and task.id then
                     activeTasks[item.name] = task.id
                     Version.log("  Craft job #" .. task.id .. " started")
