@@ -117,12 +117,16 @@ local function scan(bridge)
 
     -- Export all NBT items to the chest
     for _, item in ipairs(nbtItems) do
-        local moved = bridge.exportItem({name = item.name, count = item.count}, NBT_CHEST_SIDE)
-        if moved and moved > 0 then
-            Version.log("Exported: " .. item.name .. " x" .. moved)
-        else
-            Version.log("WARN: Could not export " .. item.name .. " (chest full?)")
-            sendAlert("NBT chest may be full - " .. item.name, "warning")
+        local remaining = item.count
+        while remaining > 0 do
+            local moved = bridge.exportItem({name = item.name, count = remaining}, NBT_CHEST_SIDE)
+            if moved and moved > 0 then
+                Version.log("Exported: " .. item.name .. " x" .. moved)
+                remaining = remaining - moved
+            else
+                Version.log("Chest full, waiting...")
+                sleep(5)
+            end
         end
     end
 
