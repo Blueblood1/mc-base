@@ -12,6 +12,7 @@ local Worker = require("worker")
 local STOCK_ITEMS = {
     -- { name = "item:id", min = amount }
     { name = "alltheores:diamond_dust",  min = 256 },
+    { name = "alltheores:tin_dust",  min = 256 },
     { name = "mekanism:dust_refined_obsidian",  min = 256 }
 }
 
