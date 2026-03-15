@@ -10,8 +10,9 @@ local Worker = require("worker")
 -- ============================================
 -- CONFIGURATION
 -- ============================================
-local SCAN_INTERVAL = 30   -- Seconds between scans
-local WORKER_NAME   = "RS NBT Report"
+local SCAN_INTERVAL  = 30    -- Seconds between scans
+local NBT_CHEST_SIDE = "top" -- Side of chest to export NBT items into (relative to RS Bridge)
+local WORKER_NAME    = "RS NBT Report"
 -- ============================================
 
 local sharedState = {
@@ -113,6 +114,18 @@ local function scan(bridge)
     }
 
     printReport(lastReport)
+
+    -- Export all NBT items to the chest
+    for _, item in ipairs(nbtItems) do
+        local moved = bridge.exportItem({name = item.name, count = item.count}, NBT_CHEST_SIDE)
+        if moved and moved > 0 then
+            Version.log("Exported: " .. item.name .. " x" .. moved)
+        else
+            Version.log("WARN: Could not export " .. item.name .. " (chest full?)")
+            sendAlert("NBT chest may be full - " .. item.name, "warning")
+        end
+    end
+
     sendTelemetry()
 end
 
