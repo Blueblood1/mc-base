@@ -157,8 +157,9 @@ local function install(args)
             print("  2. wither_mob_farm - Wither mob farm controller")
             print("  3. wither_boss_farm - Wither boss farm door controller")
             print("  4. rs_monitor - Refined Storage monitor")
+            print("  5. rs_nbt_filter - RS NBT item filter")
             print("")
-            write("Select computer type (1-4): ")
+            write("Select computer type (1-5): ")
             local choice = read()
             
             if choice == "1" then
@@ -169,6 +170,8 @@ local function install(args)
                 turtleType = "wither_boss_farm"
             elseif choice == "4" then
                 turtleType = "rs_monitor"
+            elseif choice == "5" then
+                turtleType = "rs_nbt_filter"
             else
                 print("Invalid choice, defaulting to central_computer")
                 turtleType = "central_computer"

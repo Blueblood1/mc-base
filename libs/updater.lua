@@ -63,6 +63,7 @@ Updater.MANIFEST = {
     ["wither_mob_farm.lua"] = "computers/wither_mob_farm.lua",
     ["wither_boss_farm.lua"] = "computers/wither_boss_farm.lua",
     ["rs_monitor.lua"] = "computers/rs_monitor.lua",
+    ["rs_nbt_filter.lua"] = "computers/rs_nbt_filter.lua",
     
     -- Pocket Computer
     ["remote.lua"] = "pocket/remote.lua",
