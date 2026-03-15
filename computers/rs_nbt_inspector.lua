@@ -9,7 +9,7 @@ local Version = require("version")
 -- ============================================
 -- CONFIGURATION
 -- ============================================
-local CHEST_SIDE  = "top"   -- Side the scan chest is on
+local CHEST_SIDE  = "left"  -- Side the scan chest is on
 local WORKER_NAME = "RS NBT Inspector"
 local HOST_NAME   = "nbt_inspector"
 -- ============================================
