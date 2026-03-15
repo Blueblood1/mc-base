@@ -98,15 +98,28 @@ end
 local function scanAndFilter(bridge)
     local items = bridge.getItems()
     if not items then
-        Version.log("WARNING: listItems() returned nil")
+        Version.log("WARNING: getItems() returned nil")
         return
     end
 
+    Version.log("Scan: " .. #items .. " total items in RS")
+
     local nbtItems = {}
+    local nbtCount = 0
     for _, item in ipairs(items) do
-        if hasNBT(item) and nameFilterMatches(item.name) then
-            table.insert(nbtItems, item)
+        if hasNBT(item) then
+            nbtCount = nbtCount + 1
+            if nameFilterMatches(item.name) then
+                table.insert(nbtItems, item)
+                Version.log("  NBT match: " .. item.name .. " nbt=" .. tostring(item.nbt))
+            else
+                Version.log("  NBT (filtered out): " .. item.name)
+            end
         end
+    end
+
+    if nbtCount == 0 then
+        Version.log("No NBT items found this scan")
     end
 
     stats.lastScanCount = #nbtItems
@@ -116,7 +129,7 @@ local function scanAndFilter(bridge)
         return
     end
 
-    Version.log("Found " .. #nbtItems .. " NBT item type(s), exporting...")
+    Version.log("Exporting " .. #nbtItems .. " NBT item type(s)...")
 
     for _, item in ipairs(nbtItems) do
         local ok = exportItem(bridge, item)
