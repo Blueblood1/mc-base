@@ -11,7 +11,9 @@ local Worker = require("worker")
 -- ============================================
 local STOCK_ITEMS = {
     -- { name = "item:id", min = amount }
-    { name = "thermal:diamond_dust", min = 256 }
+    { name = "minecraft:diamond", min = 64 },
+    -- { name = "thermal:diamond_dust",  min = 256 },
+    -- { name = "minecraft:iron_ingot",  min = 512 },
 }
 
 local CHECK_INTERVAL = 30   -- Seconds between stock checks
@@ -24,6 +26,9 @@ local sharedState = {
     operatingMode = "running",
     stopRequested = false
 }
+
+-- Tracks active craft task ids per item name
+local activeTasks = {}  -- item name -> task id
 
 local function findRSBridge()
     local bridge = peripheral.find("rs_bridge")
@@ -48,12 +53,27 @@ local function sendTelemetry(statuses)
     })
 end
 
+-- Returns a set of active task ids
+local function getActiveTaskIds(bridge)
+    local tasks = bridge.getCraftingTasks()
+    local ids = {}
+    if tasks then
+        for _, task in ipairs(tasks) do
+            if task.id then
+                ids[task.id] = true
+            end
+        end
+    end
+    return ids
+end
+
 local function checkAndRestock(bridge)
+    local activeIds = getActiveTaskIds(bridge)
     local statuses = {}
 
     for _, item in ipairs(STOCK_ITEMS) do
         local rsItem = bridge.getItem({name = item.name})
-        local current = rsItem and rsItem.count or 0
+        local current = rsItem and rsItem.amount or 0
         local needed  = item.min - current
 
         local status = {
@@ -64,24 +84,28 @@ local function checkAndRestock(bridge)
         }
 
         if needed > 0 then
-            -- Check if already crafting to avoid duplicate requests
-            local crafting = bridge.isItemCrafting({name = item.name})
-            if crafting then
-                Version.log(item.name .. ": " .. current .. "/" .. item.min .. " (crafting...)")
+            -- Check if our previously requested task is still running
+            local existingTaskId = activeTasks[item.name]
+            if existingTaskId and activeIds[existingTaskId] then
+                Version.log(item.name .. ": " .. current .. "/" .. item.min .. " (crafting #" .. existingTaskId .. ")")
                 status.crafting = true
             else
+                -- No active task, request a new craft
+                activeTasks[item.name] = nil
                 Version.log(item.name .. ": " .. current .. "/" .. item.min .. " - requesting " .. needed)
-                local ok = bridge.craftItem({name = item.name, count = needed})
-                if ok then
-                    Version.log("  Craft requested ok")
+                local task, err = bridge.craftItem({name = item.name, count = needed})
+                if task and task.id then
+                    activeTasks[item.name] = task.id
+                    Version.log("  Craft job #" .. task.id .. " started")
                     status.crafting = true
                 else
-                    Version.log("  WARN: Craft request failed (no pattern?)")
-                    sendAlert("Cannot craft " .. item.name .. " - no pattern?", "warning")
-                    status.error = "no_pattern"
+                    Version.log("  WARN: Craft failed - " .. tostring(err))
+                    sendAlert("Cannot craft " .. item.name .. ": " .. tostring(err), "warning")
+                    status.error = tostring(err)
                 end
             end
         else
+            activeTasks[item.name] = nil  -- clear task once stock is satisfied
             Version.log(item.name .. ": " .. current .. "/" .. item.min .. " ok")
         end
 
@@ -140,7 +164,10 @@ local function main()
 
     local commandListener = Worker.createCommandListener(sharedState, {
         sendAlert = sendAlert,
-        sendTelemetry = function() checkAndRestock(findRSBridge()) end
+        sendTelemetry = function()
+            local bridge = findRSBridge()
+            if bridge then checkAndRestock(bridge) end
+        end
     })
 
     parallel.waitForAll(mainLoop, commandListener)
