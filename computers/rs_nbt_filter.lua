@@ -104,6 +104,15 @@ local function scanAndFilter(bridge)
 
     Version.log("Scan: " .. #items .. " total items in RS")
 
+    -- Debug: print all fields of the first 3 items so we can see the data structure
+    for i = 1, math.min(3, #items) do
+        local item = items[i]
+        Version.log("Item[" .. i .. "] fields:")
+        for k, v in pairs(item) do
+            Version.log("  " .. tostring(k) .. " = " .. tostring(v))
+        end
+    end
+
     local nbtItems = {}
     local nbtCount = 0
     for _, item in ipairs(items) do
