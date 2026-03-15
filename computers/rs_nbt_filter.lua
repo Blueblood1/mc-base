@@ -136,6 +136,8 @@ local function mainLoop()
     local bridge = findRSBridge()
     if not bridge then return end
 
+    print(bridge)
+
     Version.log("RS Bridge found. Scanning every " .. SCAN_INTERVAL .. "s")
     Version.log("Exporting NBT items to: " .. EXPORT_CHEST_SIDE)
     sendAlert(WORKER_NAME .. " started")
