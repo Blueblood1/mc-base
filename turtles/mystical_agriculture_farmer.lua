@@ -507,6 +507,26 @@ local function depositSeeds()
     faceDirection(0)
 end
 
+-- Deposit all seeds then reload only what's needed for the remaining farm changes.
+local function depositAndReload(remainingChanges)
+    depositSeeds()
+    local seedsNeeded = {}
+    for _, changes in ipairs(remainingChanges) do
+        for _, c in ipairs(changes) do
+            if c.action == "plant" then
+                seedsNeeded[c.seedName] = (seedsNeeded[c.seedName] or 0) + 1
+            end
+        end
+    end
+    local seedLoadList = {}
+    for name, count in pairs(seedsNeeded) do
+        table.insert(seedLoadList, {name = name, count = count})
+    end
+    if #seedLoadList > 0 then
+        loadSeedsFromChest(seedLoadList)
+    end
+end
+
 -- ---------------------------------------------------------------------------
 -- Central computer communication
 -- ---------------------------------------------------------------------------
@@ -796,8 +816,9 @@ local function workCycle()
         return false
     end
 
-    -- 7. Travel back to farm 1, then on to farm 3
+    -- 7. Travel back to farm 1, deposit, reload for farms 3+4, then on to farm 3
     travelToFarm1()
+    depositAndReload({allChanges[3], allChanges[4]})
 
     if not travelToFarm3() then
         depositSeeds()
@@ -815,8 +836,9 @@ local function workCycle()
         return false
     end
 
-    -- 8. Travel back to farm 1, then on to farm 4
+    -- 8. Travel back to farm 1, deposit, reload for farm 4, then on to farm 4
     travelFromFarm3ToFarm1()
+    depositAndReload({allChanges[4]})
 
     if not travelToFarm4() then
         depositSeeds()
