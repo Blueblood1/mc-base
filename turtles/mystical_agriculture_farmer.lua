@@ -480,29 +480,30 @@ local function getRsBridge()
 end
 
 -- Pull seeds from RS storage into turtle inventory via the bridge above.
+-- Returns true if all required seeds were loaded, false if any failed.
 local function loadSeedsFromBridge(seedList)
     Version.log("Loading seeds from RS Bridge...")
     local bridge = getRsBridge()
-    if not bridge then return end
+    if not bridge then return false end
 
+    local allOk = true
     for _, entry in ipairs(seedList) do
         local needed = entry.count - countSeeds(entry.name)
         if needed > 0 then
-            -- exportItemToPeripheral pushes items from RS into an adjacent inventory.
-            -- The turtle itself is the target - use "turtle" as the target name,
-            -- or use importItemFromPeripheral depending on AP version.
-            -- AP's exportItem: bridge.exportItem({name=..., count=...}, "top") exports
-            -- from RS into the inventory on that side of the bridge.
-            -- Since bridge is above turtle, export downward ("down" from bridge's perspective
-            -- = "top" from turtle's perspective). We call from the bridge side:
             local result = bridge.exportItem({name = entry.name, count = needed}, "down")
             if not result or result == 0 then
                 sendAlert("Could not pull " .. entry.name .. " from RS storage")
+                allOk = false
             else
                 Version.log("Pulled " .. result .. "x " .. entry.name)
+                if result < needed then
+                    sendAlert("Only got " .. result .. "/" .. needed .. " of " .. entry.name)
+                    allOk = false
+                end
             end
         end
     end
+    return allOk
 end
 
 -- Dump all turtle inventory slots back into RS storage via the bridge above.
@@ -526,6 +527,7 @@ local function depositSeeds()
 end
 
 -- Deposit all seeds then reload only what's needed for the remaining farm changes.
+-- Returns false if seeds were needed but could not be loaded.
 local function depositAndReload(remainingChanges)
     depositSeeds()
     local seedsNeeded = {}
@@ -541,8 +543,9 @@ local function depositAndReload(remainingChanges)
         table.insert(seedLoadList, {name = name, count = count})
     end
     if #seedLoadList > 0 then
-        loadSeedsFromBridge(seedLoadList)
+        return loadSeedsFromBridge(seedLoadList)
     end
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -802,7 +805,10 @@ local function workCycle()
     checkPause()
 
     if #seedLoadList > 0 then
-        loadSeedsFromBridge(seedLoadList)
+        if not loadSeedsFromBridge(seedLoadList) then
+            sendAlert("Aborting cycle: failed to load required seeds from RS storage")
+            return false
+        end
     end
 
     -- 5. Work farm 1
@@ -836,7 +842,10 @@ local function workCycle()
 
     -- 7. Travel back to farm 1, deposit, reload for farms 3+4, then on to farm 3
     travelToFarm1()
-    depositAndReload({allChanges[3], allChanges[4]})
+    if not depositAndReload({allChanges[3], allChanges[4]}) then
+        sendAlert("Aborting: failed to reload seeds for farms 3+4")
+        return false
+    end
 
     if not travelToFarm3() then
         depositSeeds()
@@ -856,7 +865,10 @@ local function workCycle()
 
     -- 8. Travel back to farm 1, deposit, reload for farm 4, then on to farm 4
     travelFromFarm3ToFarm1()
-    depositAndReload({allChanges[4]})
+    if not depositAndReload({allChanges[4]}) then
+        sendAlert("Aborting: failed to reload seeds for farm 4")
+        return false
+    end
 
     if not travelToFarm4() then
         depositSeeds()
