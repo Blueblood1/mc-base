@@ -251,43 +251,21 @@ local function moveToCol(targetCol)
 end
 
 local function navigateTo(targetRow, targetCol)
-    -- Check if a direct path (row-first or col-first) would pass through the blocked cell.
-    -- Row-first corner: (targetRow, state.posCol)
-    -- Col-first corner: (state.posRow, targetCol)
-    local crossesRowFirst = (targetRow == BLOCK_ROW and state.posCol == BLOCK_COL)
-        or (state.posCol == BLOCK_COL and
-            ((state.posRow > BLOCK_ROW and targetRow < BLOCK_ROW) or
-             (state.posRow < BLOCK_ROW and targetRow > BLOCK_ROW)))
-        or (targetRow == BLOCK_ROW and
-            ((state.posCol > BLOCK_COL and targetCol < BLOCK_COL) or
-             (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)))
+    -- Row-first navigation corners at (targetRow, state.posCol).
+    -- If that corner IS the blocked cell, we need to detour around col 5.
+    -- Otherwise go directly: row first, then col.
+    local cornerRow = targetRow
+    local cornerCol = state.posCol
 
-    -- A path passes through (5,5) if it must cross BOTH row 5 and col 5.
-    -- This happens when the start and target are in opposite quadrants relative to (5,5).
-    local crossesRow5 = (state.posRow > BLOCK_ROW and targetRow < BLOCK_ROW)
-                     or (state.posRow < BLOCK_ROW and targetRow > BLOCK_ROW)
-                     or (state.posRow == BLOCK_ROW or targetRow == BLOCK_ROW)
-    local crossesCol5 = (state.posCol > BLOCK_COL and targetCol < BLOCK_COL)
-                     or (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)
-                     or (state.posCol == BLOCK_COL or targetCol == BLOCK_COL)
-
-    local needsDetour = crossesRow5 and crossesCol5
+    local needsDetour = (cornerRow == BLOCK_ROW and cornerCol == BLOCK_COL)
 
     if not needsDetour then
-        -- Safe to go directly: row-first then col
         return moveToRow(targetRow) and moveToCol(targetCol)
     end
 
-    -- Detour: go around col 5 by routing via col 4 or col 6.
-    -- Pick whichever detour col is closer to current position.
-    local detourCol
-    if state.posCol <= BLOCK_COL then
-        detourCol = BLOCK_COL - 1  -- col 4, stay left of obstacle
-    else
-        detourCol = BLOCK_COL + 1  -- col 6, stay right of obstacle
-    end
-
-    -- Go to detour col first (staying on current row), then to target row, then to target col
+    -- Detour around col 5: go to detour col first, then row, then final col.
+    -- Stay on whichever side of col 5 we're currently on.
+    local detourCol = (state.posCol < BLOCK_COL) and (BLOCK_COL - 1) or (BLOCK_COL + 1)
     if not moveToCol(detourCol) then return false end
     if not moveToRow(targetRow) then return false end
     if not moveToCol(targetCol) then return false end
