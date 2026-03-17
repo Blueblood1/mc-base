@@ -31,7 +31,7 @@ local STATE_FILE = "ma_farmer_state.txt"
 --   }
 -- ---------------------------------------------------------------------------
 local DESIRED_CONFIG = {
-    ["mysticalagriculture:fire_seeds"] = 36,
+    ["mysticalagriculture:inferium_seeds"] = 36,
 }
 
 -- Shared state for command listener
@@ -458,7 +458,7 @@ local function executeChanges(changes)
 
             Version.log("Slot " .. slotIdx .. " -> row=" .. info.row .. " col=" .. info.col)
 
-            if not navigateTo(info.physRow, info.physCol) then
+            if not navigateTo(info.row, info.col) then
                 sendAlert("Navigation failed at slot " .. slotIdx)
                 return false
             end
