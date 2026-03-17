@@ -255,30 +255,28 @@ local function moveToCol(targetCol)
 end
 
 local function navigateTo(targetRow, targetCol)
-    -- Row-first corners at (targetRow, state.posCol).
-    -- After that, col movement happens at targetRow.
-    -- We need a detour if either:
-    --   1. The row-first corner is the blocked cell (targetRow==5, posCol==5)
-    --   2. The col movement crosses col 5 while on row 5
-    --      (targetRow==5 and posCol and targetCol are on opposite sides of col 5)
+    -- The block is at (BLOCK_ROW=5, BLOCK_COL=5).
+    -- Any move that crosses col 5 while on row 5 (either currently or as destination)
+    -- must detour via a different row to cross col 5 safely.
 
-    local onBlockRow = (targetRow == BLOCK_ROW)
+    local alreadyOnBlockRow = (state.posRow == BLOCK_ROW)
+    local headingToBlockRow = (targetRow == BLOCK_ROW)
     local colCrossesBlock = (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)
                          or (state.posCol > BLOCK_COL and targetCol < BLOCK_COL)
                          or (state.posCol == BLOCK_COL or targetCol == BLOCK_COL)
 
-    local needsDetour = onBlockRow and colCrossesBlock
+    local needsDetour = (alreadyOnBlockRow or headingToBlockRow) and colCrossesBlock
 
     if not needsDetour then
         return moveToRow(targetRow) and moveToCol(targetCol)
     end
 
-    -- Detour: pick a safe col on the same side as where we currently are,
-    -- go there first, then row, then final col.
-    local detourCol = (state.posCol < BLOCK_COL) and (BLOCK_COL - 1) or (BLOCK_COL + 1)
-    if not moveToCol(detourCol) then return false end
-    if not moveToRow(targetRow) then return false end
+    -- Detour: move off row 5 first (to row 6), cross col 5 there, then go to target row.
+    -- Row 6 is always safe - no obstacle.
+    local detourRow = BLOCK_ROW + 1
+    if not moveToRow(detourRow) then return false end
     if not moveToCol(targetCol) then return false end
+    if not moveToRow(targetRow) then return false end
     return true
 end
 
