@@ -1,5 +1,5 @@
 -- Mystical Agriculture Farmer Turtle
--- Manages seed planting across a star-pattern farm
+-- Manages seed planting across two star-pattern farms
 -- Requests desired config from central, diffs against current state, replants as needed
 
 local Network = require("network")
@@ -10,32 +10,35 @@ local Version = require("version")
 
 -- Debug flag: when true, skips central computer farm state lookup and assumes all slots empty.
 -- Useful for testing navigation without a central computer connection.
-local DEBUG_ASSUME_EMPTY = true
+local DEBUG_ASSUME_EMPTY = false
 
 -- Configuration
 local TURTLE_NAME = "MA Farmer"
-local FARM_ID = 1                   -- Which farm this turtle manages (1-4)
 local FUEL_SLOT = 16
 local SEED_SLOTS_START = 1
 local SEED_SLOTS_END = 15
-local CYCLE_FUEL_REQUIREMENT = 300
-local CHECK_INTERVAL = 30           -- Seconds between config checks when idle
+local CYCLE_FUEL_REQUIREMENT = 500  -- Covers both farms in one cycle
+local CHECK_INTERVAL = 30
 local STATE_FILE = "ma_farmer_state.txt"
 
+-- Farm 2 is 17 blocks to the left of farm 1's park position.
+local FARM2_OFFSET = 17  -- blocks left from farm 1 park to farm 2 park
+
 -- ---------------------------------------------------------------------------
--- Desired seed configuration - edit this and push an update to change the farm
--- Keys are seed item names (partial match is fine), values are slot counts.
--- Total should not exceed TOTAL_SLOTS (36).
--- Example: all fire seeds
---   DESIRED_CONFIG = { ["mysticalagriculture:fire_seeds"] = 36 }
--- Example: mixed farm
---   DESIRED_CONFIG = {
---       ["mysticalagriculture:fire_seeds"]  = 16,
---       ["mysticalagriculture:water_seeds"] = 20,
---   }
+-- Desired seed configuration per farm
+-- Edit and push an update to change what's planted.
+-- Total per farm should not exceed TOTAL_SLOTS (36).
 -- ---------------------------------------------------------------------------
-local DESIRED_CONFIG = {
-    ["mysticalagriculture:inferium_seeds"] = 36,
+local FARM_CONFIGS = {
+    [1] = {
+        ["mysticalagriculture:inferium_seeds"] = 36,
+    },
+    [2] = {
+        ["mysticalagriculture:inferium_seeds"] = 36,
+    },
+    [3] = {
+        ["mysticalagriculture:inferium_seeds"] = 36,
+    },
 }
 
 -- Shared state for command listener
@@ -54,6 +57,7 @@ local sendTelemetry
 local state = {
     phase = "idle",
     currentSlot = 0,
+    currentFarm = 1,
     facing = 0,   -- 0=toward row 1 (forward/north), 1=right (east), 2=back (south), 3=left (west)
     posRow = 10,  -- starts at home row
     posCol = 1,   -- starts at home col
@@ -82,7 +86,7 @@ local stats = {
 --   Row 2: cols 2,4,6,8
 --   Row 3: cols 1,3,5,7,9
 --   Row 4: cols 2,4,6,8
---   Row 5: cols 1,3,7,9        (centre col 5 is empty)
+--   Row 5: cols 1,3,7,9        (centre col 5 is empty - cable)
 --   Row 6: cols 2,4,6,8
 --   Row 7: cols 1,3,5,7,9
 --   Row 8: cols 2,4,6,8
@@ -111,7 +115,7 @@ local SLOT_MAP = {
 
 local TOTAL_SLOTS = #SLOT_MAP  -- 36
 
--- Home position
+-- Home position (within farm coordinate space)
 local HOME_ROW = 10
 local HOME_COL = 1
 
@@ -153,7 +157,7 @@ sendTelemetry = function()
         status    = stats.lastError and "error" or (state.phase == "idle" and "idle" or "working"),
         fuel      = TurtleLib.getFuelStatus(),
         inventory = TurtleLib.getInventoryStatus(),
-        task      = { phase = state.phase, farmId = FARM_ID,
+        task      = { phase = state.phase, farm = state.currentFarm,
                       currentSlot = state.currentSlot, totalSlots = TOTAL_SLOTS },
         stats     = { seedsPlanted = stats.seedsPlanted,
                       seedsHarvested = stats.seedsHarvested,
@@ -219,16 +223,13 @@ local function stepForward()
         saveState()
         return true
     end
-    -- Shouldn't happen at elevation, but handle gracefully
     sendAlert("Blocked at row=" .. state.posRow .. " col=" .. state.posCol)
     return false
 end
 
 -- The centre cell (5,5) is permanently blocked by a cable.
--- Any path crossing row 5 AND col 5 simultaneously must detour around it.
 local BLOCK_ROW, BLOCK_COL = 5, 5
 
--- Move along row axis only (no col change)
 local function moveToRow(targetRow)
     local rowDiff = targetRow - state.posRow
     if rowDiff < 0 then
@@ -241,7 +242,6 @@ local function moveToRow(targetRow)
     return true
 end
 
--- Move along col axis only (no row change)
 local function moveToCol(targetCol)
     local colDiff = targetCol - state.posCol
     if colDiff > 0 then
@@ -255,10 +255,6 @@ local function moveToCol(targetCol)
 end
 
 local function navigateTo(targetRow, targetCol)
-    -- The block is at (BLOCK_ROW=5, BLOCK_COL=5).
-    -- Any move that crosses col 5 while on row 5 (either currently or as destination)
-    -- must detour via a different row to cross col 5 safely.
-
     local alreadyOnBlockRow = (state.posRow == BLOCK_ROW)
     local headingToBlockRow = (targetRow == BLOCK_ROW)
     local colCrossesBlock = (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)
@@ -271,8 +267,7 @@ local function navigateTo(targetRow, targetCol)
         return moveToRow(targetRow) and moveToCol(targetCol)
     end
 
-    -- Detour: move off row 5 first (to row 6), cross col 5 there, then go to target row.
-    -- Row 6 is always safe - no obstacle.
+    -- Detour via row 6 to safely cross col 5
     local detourRow = BLOCK_ROW + 1
     if not moveToRow(detourRow) then return false end
     if not moveToCol(targetCol) then return false end
@@ -287,6 +282,107 @@ local function returnHome()
     faceDirection(0)  -- face into farm ready for next cycle
     state.phase = "idle"
     clearState()
+end
+
+-- ---------------------------------------------------------------------------
+-- Inter-farm travel
+-- ---------------------------------------------------------------------------
+-- Farm 2 park is FARM2_OFFSET blocks to the LEFT of farm 1 park.
+-- At park position the turtle faces direction 0 (into the farm).
+-- Left from that perspective is facing=3.
+
+local function travelToFarm2()
+    Version.log("Travelling to farm 2...")
+    state.currentFarm = 2
+    saveState()
+    faceDirection(3)  -- face left
+    for _ = 1, FARM2_OFFSET do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 2")
+            return false
+        end
+    end
+    faceDirection(0)  -- face into farm 2
+    saveState()
+    return true
+end
+
+local function travelToFarm1()
+    Version.log("Travelling back to farm 1...")
+    state.currentFarm = 1
+    saveState()
+    faceDirection(1)  -- face right (back toward farm 1)
+    for _ = 1, FARM2_OFFSET do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling back to farm 1")
+            return false
+        end
+    end
+    faceDirection(0)  -- face into farm 1
+    saveState()
+    return true
+end
+
+-- Farm 3 route from farm 1 park:
+--   left 4, forward 15, right 4 → same park orientation as farm 1
+local function travelToFarm3()
+    Version.log("Travelling to farm 3...")
+    state.currentFarm = 3
+    saveState()
+    faceDirection(3)  -- face left
+    for _ = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 3 (left leg)")
+            return false
+        end
+    end
+    faceDirection(0)  -- face forward (same as start)
+    for _ = 1, 15 do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 3 (forward leg)")
+            return false
+        end
+    end
+    faceDirection(1)  -- face right
+    for _ = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 3 (right leg)")
+            return false
+        end
+    end
+    faceDirection(0)  -- face into farm 3
+    saveState()
+    return true
+end
+
+local function travelFromFarm3ToFarm1()
+    Version.log("Travelling back to farm 1 from farm 3...")
+    state.currentFarm = 1
+    saveState()
+    faceDirection(3)  -- face left (reverse of right leg)
+    for _ = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Blocked returning from farm 3 (left leg)")
+            return false
+        end
+    end
+    faceDirection(2)  -- face back (reverse of forward leg)
+    for _ = 1, 15 do
+        if not turtle.forward() then
+            sendAlert("Blocked returning from farm 3 (back leg)")
+            return false
+        end
+    end
+    faceDirection(1)  -- face right (reverse of left leg)
+    for _ = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Blocked returning from farm 3 (right leg)")
+            return false
+        end
+    end
+    faceDirection(0)  -- face into farm 1
+    saveState()
+    return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -310,10 +406,10 @@ local function countSeeds(seedName)
     return total
 end
 
--- Seed chest is directly behind home position
+-- Seed chest is directly behind home position (facing=2)
 local function loadSeedsFromChest(seedList)
     Version.log("Loading seeds from chest...")
-    faceDirection(2)  -- face behind (seed chest)
+    faceDirection(2)
     for _, entry in ipairs(seedList) do
         local needed = entry.count - countSeeds(entry.name)
         if needed > 0 then
@@ -350,28 +446,27 @@ end
 -- Central computer communication
 -- ---------------------------------------------------------------------------
 
-local function requestFromCentral(command, responseCommand, timeout)
-    timeout = timeout or 5
+local function requestFarmState(farmId)
     if not sharedState.centralId then return nil end
 
     Network.send(sharedState.centralId, Network.MSG_TYPES.COMMAND, {
-        command = command,
-        farmId  = FARM_ID,
+        command = "get_farm_state",
+        farmId  = farmId,
     })
 
-    local timer = os.startTimer(timeout)
+    local timer = os.startTimer(5)
     while true do
         local event, p1, p2, p3 = os.pullEvent()
         if event == "timer" and p1 == timer then
-            Version.log("Timeout waiting for " .. responseCommand)
+            Version.log("Timeout waiting for farm_state (farm " .. farmId .. ")")
             return nil
         elseif event == "rednet_message" then
             if p3 == Network.PROTOCOL and type(p2) == "table" then
                 if p2.type == Network.MSG_TYPES.RESPONSE and p2.data then
                     local d = p2.data
-                    if d.command == responseCommand and d.farmId == FARM_ID then
+                    if d.command == "farm_state" and d.farmId == farmId then
                         os.cancelTimer(timer)
-                        return d
+                        return d.state
                     end
                 end
             end
@@ -379,16 +474,11 @@ local function requestFromCentral(command, responseCommand, timeout)
     end
 end
 
-local function requestFarmState()
-    local resp = requestFromCentral("get_farm_state", "farm_state")
-    return resp and resp.state or nil
-end
-
-local function reportSlotUpdate(slotIdx, seedName)
+local function reportSlotUpdate(farmId, slotIdx, seedName)
     if not sharedState.centralId then return end
     Network.send(sharedState.centralId, Network.MSG_TYPES.COMMAND, {
         command  = "update_farm_slot",
-        farmId   = FARM_ID,
+        farmId   = farmId,
         slotIdx  = slotIdx,
         seedName = seedName,
     })
@@ -398,7 +488,6 @@ end
 -- Planting / harvesting at a slot
 -- ---------------------------------------------------------------------------
 
--- Turtle is positioned directly above the farmland block
 local function harvestCurrentSlot()
     local has, data = turtle.inspectDown()
     if has and data.name then
@@ -419,6 +508,8 @@ local function plantSeed(seedName)
         sendAlert("Seed not in inventory: " .. seedName)
         return false
     end
+    -- Always clear the slot before planting
+    turtle.digDown()
     turtle.select(slot)
     if turtle.placeDown() then
         stats.seedsPlanted = stats.seedsPlanted + 1
@@ -432,7 +523,6 @@ end
 -- Diff and execute
 -- ---------------------------------------------------------------------------
 
--- Build desired slot assignment from config {seedName = count}
 local function buildDesiredSlots(desiredConfig)
     local desired = {}
     local remaining = {}
@@ -471,9 +561,10 @@ local function computeChanges(currentState, desiredConfig)
     return changes
 end
 
-local function executeChanges(changes)
+-- Execute changes for a specific farm. farmId is used for slot update reporting.
+local function executeChanges(changes, farmId)
     if #changes == 0 then
-        Version.log("Farm already configured correctly.")
+        Version.log("Farm " .. farmId .. " already configured correctly.")
         return true
     end
 
@@ -490,12 +581,13 @@ local function executeChanges(changes)
             local info = SLOT_MAP[slotIdx]
             state.phase = "navigating"
             state.currentSlot = slotIdx
+            state.currentFarm = farmId
             saveState()
 
-            Version.log("Slot " .. slotIdx .. " -> row=" .. info.row .. " col=" .. info.col)
+            Version.log("Farm " .. farmId .. " slot " .. slotIdx .. " -> row=" .. info.row .. " col=" .. info.col)
 
             if not navigateTo(info.row, info.col) then
-                sendAlert("Navigation failed at slot " .. slotIdx)
+                sendAlert("Navigation failed at farm " .. farmId .. " slot " .. slotIdx)
                 return false
             end
 
@@ -504,13 +596,13 @@ local function executeChanges(changes)
                     state.phase = "harvesting"; saveState()
                     Version.log("Harvesting " .. change.seedName)
                     harvestCurrentSlot()
-                    reportSlotUpdate(slotIdx, "empty")
+                    reportSlotUpdate(farmId, slotIdx, "empty")
 
                 elseif change.action == "plant" then
                     state.phase = "planting"; saveState()
                     Version.log("Planting " .. change.seedName)
                     if plantSeed(change.seedName) then
-                        reportSlotUpdate(slotIdx, change.seedName)
+                        reportSlotUpdate(farmId, slotIdx, change.seedName)
                     end
                 end
             end
@@ -526,7 +618,7 @@ end
 -- Farm entry / exit
 -- ---------------------------------------------------------------------------
 -- Park position is 2 blocks back and 2 blocks down from the farm entry point.
--- To enter: forward x2, up x2. To exit: down x2, back x2.
+-- To enter: forward x2, up x2. To exit: returnHome(), down x2, back x2.
 
 local function enterFarm()
     state.phase = "entering"
@@ -541,7 +633,6 @@ local function enterFarm()
 end
 
 local function exitFarm()
-    -- Return to farm entry point first
     returnHome()
     Version.log("Exiting farm...")
     for _ = 1, 2 do turtle.down() end
@@ -557,35 +648,45 @@ end
 local function workCycle()
     state.phase = "idle"; saveState()
 
-    local currentState
-    if DEBUG_ASSUME_EMPTY then
-        Version.log("DEBUG: assuming farm is empty")
-        currentState = {}
-    else
-        currentState = requestFarmState()
-        if not currentState then
-            sendAlert("Could not get farm state from central")
-            return false
+    -- 1. Gather current state for all farms
+    local farmStates = {}
+    for farmId = 1, 3 do
+        if DEBUG_ASSUME_EMPTY then
+            Version.log("DEBUG: assuming farm " .. farmId .. " is empty")
+            farmStates[farmId] = {}
+        else
+            local fs_state = requestFarmState(farmId)
+            if not fs_state then
+                sendAlert("Could not get farm " .. farmId .. " state from central")
+                return false
+            end
+            farmStates[farmId] = fs_state
         end
     end
 
-    local changes = computeChanges(currentState, DESIRED_CONFIG)
+    -- 2. Compute changes for all farms
+    local allChanges = {}
+    for farmId = 1, 3 do
+        allChanges[farmId] = computeChanges(farmStates[farmId], FARM_CONFIGS[farmId])
+        Version.log("Farm " .. farmId .. ": " .. #allChanges[farmId] .. " changes needed")
+    end
 
-    if #changes == 0 then
-        Version.log("No changes needed.")
+    local totalChanges = #allChanges[1] + #allChanges[2] + #allChanges[3]
+    if totalChanges == 0 then
+        Version.log("No changes needed on any farm.")
         stats.cyclesCompleted = stats.cyclesCompleted + 1
         stats.lastError = nil
         sendTelemetry()
         return true
     end
 
-    Version.log(#changes .. " changes needed.")
-
-    -- Collect seeds we need to load
+    -- 3. Collect all seeds needed across all farms
     local seedsNeeded = {}
-    for _, c in ipairs(changes) do
-        if c.action == "plant" then
-            seedsNeeded[c.seedName] = (seedsNeeded[c.seedName] or 0) + 1
+    for farmId = 1, 3 do
+        for _, c in ipairs(allChanges[farmId]) do
+            if c.action == "plant" then
+                seedsNeeded[c.seedName] = (seedsNeeded[c.seedName] or 0) + 1
+            end
         end
     end
     local seedLoadList = {}
@@ -593,7 +694,7 @@ local function workCycle()
         table.insert(seedLoadList, {name = name, count = count})
     end
 
-    -- All chest interactions happen at park position (before entering farm)
+    -- 4. Load fuel and seeds at farm 1 park position
     TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
     checkPause()
 
@@ -601,21 +702,60 @@ local function workCycle()
         loadSeedsFromChest(seedLoadList)
     end
 
-    -- Enter farm at working height
+    -- 5. Work farm 1
+    state.currentFarm = 1; saveState()
     enterFarm()
-
-    local ok = executeChanges(changes)
-
-    -- Return to farm entry point, then descend back to park position
+    local ok1 = executeChanges(allChanges[1], 1)
     exitFarm()
 
-    -- Deposit leftover seeds at park position
+    if not ok1 then
+        sendAlert("Farm 1 work failed")
+        depositSeeds()
+        return false
+    end
+
+    -- 6. Travel to farm 2 and work it
+    if not travelToFarm2() then
+        depositSeeds()
+        return false
+    end
+
+    enterFarm()
+    local ok2 = executeChanges(allChanges[2], 2)
+    exitFarm()
+
+    if not ok2 then
+        sendAlert("Farm 2 work failed")
+        travelToFarm1()
+        depositSeeds()
+        return false
+    end
+
+    -- 7. Travel back to farm 1, then on to farm 3
+    travelToFarm1()
+
+    if not travelToFarm3() then
+        depositSeeds()
+        return false
+    end
+
+    enterFarm()
+    local ok3 = executeChanges(allChanges[3], 3)
+    exitFarm()
+
+    -- 8. Travel back to farm 1 park position
+    travelFromFarm3ToFarm1()
+
+    -- 9. Deposit leftover seeds
     depositSeeds()
 
+    local ok = ok1 and ok2 and ok3
     if ok then
         stats.cyclesCompleted = stats.cyclesCompleted + 1
         stats.lastError = nil
-        Version.log("Cycle complete!")
+        Version.log("Cycle complete! All 3 farms done.")
+    else
+        sendAlert("Farm 3 work failed")
     end
 
     sendTelemetry()
