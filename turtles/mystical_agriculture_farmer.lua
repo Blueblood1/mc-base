@@ -35,7 +35,7 @@ local STATE_FILE = "ma_farmer_state.txt"
 --   }
 -- ---------------------------------------------------------------------------
 local DESIRED_CONFIG = {
-    ["mysticalagriculture:dirt_seeds"] = 36,
+    ["mysticalagriculture:inferium_seeds"] = 36,
 }
 
 -- Shared state for command listener
@@ -523,6 +523,34 @@ local function executeChanges(changes)
 end
 
 -- ---------------------------------------------------------------------------
+-- Farm entry / exit
+-- ---------------------------------------------------------------------------
+-- Park position is 2 blocks back and 2 blocks down from the farm entry point.
+-- To enter: forward x2, up x2. To exit: down x2, back x2.
+
+local function enterFarm()
+    state.phase = "entering"
+    saveState()
+    Version.log("Entering farm...")
+    for _ = 1, 2 do turtle.forward() end
+    for _ = 1, 2 do turtle.up() end
+    -- Now at farm entry (HOME_ROW, HOME_COL) at working height
+    state.posRow = HOME_ROW
+    state.posCol = HOME_COL
+    saveState()
+end
+
+local function exitFarm()
+    -- Return to farm entry point first
+    returnHome()
+    Version.log("Exiting farm...")
+    for _ = 1, 2 do turtle.down() end
+    for _ = 1, 2 do turtle.back() end
+    state.phase = "idle"
+    saveState()
+end
+
+-- ---------------------------------------------------------------------------
 -- Work cycle
 -- ---------------------------------------------------------------------------
 
@@ -565,6 +593,7 @@ local function workCycle()
         table.insert(seedLoadList, {name = name, count = count})
     end
 
+    -- All chest interactions happen at park position (before entering farm)
     TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
     checkPause()
 
@@ -572,9 +601,15 @@ local function workCycle()
         loadSeedsFromChest(seedLoadList)
     end
 
+    -- Enter farm at working height
+    enterFarm()
+
     local ok = executeChanges(changes)
 
-    returnHome()
+    -- Return to farm entry point, then descend back to park position
+    exitFarm()
+
+    -- Deposit leftover seeds at park position
     depositSeeds()
 
     if ok then
