@@ -220,69 +220,78 @@ local function stepForward()
     return false
 end
 
--- Cells that are physically blocked and cannot be entered
-local BLOCKED = {
-    [{5, 5}] = true,  -- centre cable
-}
-local function isBlocked(row, col)
-    for _, b in ipairs({{5, 5}}) do
-        if b[1] == row and b[2] == col then return true end
+-- The centre cell (5,5) is permanently blocked by a cable.
+-- Any path crossing row 5 AND col 5 simultaneously must detour around it.
+local BLOCK_ROW, BLOCK_COL = 5, 5
+
+-- Move along row axis only (no col change)
+local function moveToRow(targetRow)
+    local rowDiff = targetRow - state.posRow
+    if rowDiff < 0 then
+        faceDirection(0)
+        for _ = 1, -rowDiff do if not stepForward() then return false end end
+    elseif rowDiff > 0 then
+        faceDirection(2)
+        for _ = 1, rowDiff do if not stepForward() then return false end end
     end
-    return false
+    return true
+end
+
+-- Move along col axis only (no row change)
+local function moveToCol(targetCol)
+    local colDiff = targetCol - state.posCol
+    if colDiff > 0 then
+        faceDirection(1)
+        for _ = 1, colDiff do if not stepForward() then return false end end
+    elseif colDiff < 0 then
+        faceDirection(3)
+        for _ = 1, -colDiff do if not stepForward() then return false end end
+    end
+    return true
 end
 
 local function navigateTo(targetRow, targetCol)
-    -- Determine if row-first path would pass through a blocked cell.
-    -- Row-first means we travel along col=state.posCol until we hit targetRow,
-    -- so the intermediate cell at (targetRow, state.posCol) must not be blocked.
-    -- Col-first means we travel along row=state.posRow until we hit targetCol,
-    -- so the intermediate cell at (state.posRow, targetCol) must not be blocked.
-    local rowFirstBlocked = isBlocked(targetRow, state.posCol)
-    local colFirstBlocked = isBlocked(state.posRow, targetCol)
+    -- Check if a direct path (row-first or col-first) would pass through the blocked cell.
+    -- Row-first corner: (targetRow, state.posCol)
+    -- Col-first corner: (state.posRow, targetCol)
+    local crossesRowFirst = (targetRow == BLOCK_ROW and state.posCol == BLOCK_COL)
+        or (state.posCol == BLOCK_COL and
+            ((state.posRow > BLOCK_ROW and targetRow < BLOCK_ROW) or
+             (state.posRow < BLOCK_ROW and targetRow > BLOCK_ROW)))
+        or (targetRow == BLOCK_ROW and
+            ((state.posCol > BLOCK_COL and targetCol < BLOCK_COL) or
+             (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)))
 
-    -- Choose order: prefer row-first unless it's blocked
-    local doRowFirst = not rowFirstBlocked
+    -- A path passes through (5,5) if it must cross BOTH row 5 and col 5.
+    -- This happens when the start and target are in opposite quadrants relative to (5,5).
+    local crossesRow5 = (state.posRow > BLOCK_ROW and targetRow < BLOCK_ROW)
+                     or (state.posRow < BLOCK_ROW and targetRow > BLOCK_ROW)
+                     or (state.posRow == BLOCK_ROW or targetRow == BLOCK_ROW)
+    local crossesCol5 = (state.posCol > BLOCK_COL and targetCol < BLOCK_COL)
+                     or (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)
+                     or (state.posCol == BLOCK_COL or targetCol == BLOCK_COL)
 
-    -- If both are blocked we need a two-step detour via a safe waypoint.
-    -- In practice with only one blocked cell this shouldn't happen, but handle it.
-    if rowFirstBlocked and colFirstBlocked then
-        -- Detour: move to (state.posRow, targetCol-1) then (targetRow, targetCol)
-        -- or any adjacent safe cell - pick col offset by 1
-        local detourCol = targetCol + (targetCol <= state.posCol and 1 or -1)
-        navigateTo(targetRow, detourCol)
-        navigateTo(targetRow, targetCol)
-        return true
+    local needsDetour = crossesRow5 and crossesCol5
+
+    if not needsDetour then
+        -- Safe to go directly: row-first then col
+        return moveToRow(targetRow) and moveToCol(targetCol)
     end
 
-    local function moveRow()
-        local rowDiff = targetRow - state.posRow
-        if rowDiff < 0 then
-            faceDirection(0)
-            for _ = 1, -rowDiff do if not stepForward() then return false end end
-        elseif rowDiff > 0 then
-            faceDirection(2)
-            for _ = 1, rowDiff do if not stepForward() then return false end end
-        end
-        return true
-    end
-
-    local function moveCol()
-        local colDiff = targetCol - state.posCol
-        if colDiff > 0 then
-            faceDirection(1)
-            for _ = 1, colDiff do if not stepForward() then return false end end
-        elseif colDiff < 0 then
-            faceDirection(3)
-            for _ = 1, -colDiff do if not stepForward() then return false end end
-        end
-        return true
-    end
-
-    if doRowFirst then
-        return moveRow() and moveCol()
+    -- Detour: go around col 5 by routing via col 4 or col 6.
+    -- Pick whichever detour col is closer to current position.
+    local detourCol
+    if state.posCol <= BLOCK_COL then
+        detourCol = BLOCK_COL - 1  -- col 4, stay left of obstacle
     else
-        return moveCol() and moveRow()
+        detourCol = BLOCK_COL + 1  -- col 6, stay right of obstacle
     end
+
+    -- Go to detour col first (staying on current row), then to target row, then to target col
+    if not moveToCol(detourCol) then return false end
+    if not moveToRow(targetRow) then return false end
+    if not moveToCol(targetCol) then return false end
+    return true
 end
 
 local function returnHome()
