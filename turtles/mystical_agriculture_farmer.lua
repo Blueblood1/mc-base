@@ -31,7 +31,7 @@ local STATE_FILE = "ma_farmer_state.txt"
 --   }
 -- ---------------------------------------------------------------------------
 local DESIRED_CONFIG = {
-    ["mysticalagriculture:dirt_seeds"] = 36,
+    ["mysticalagriculture:inferium_seeds"] = 36,
 }
 
 -- Shared state for command listener
