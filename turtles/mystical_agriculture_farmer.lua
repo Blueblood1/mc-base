@@ -8,6 +8,10 @@ local Worker = require("worker")
 local Updater = require("updater")
 local Version = require("version")
 
+-- Debug flag: when true, skips central computer farm state lookup and assumes all slots empty.
+-- Useful for testing navigation without a central computer connection.
+local DEBUG_ASSUME_EMPTY = true
+
 -- Configuration
 local TURTLE_NAME = "MA Farmer"
 local FARM_ID = 1                   -- Which farm this turtle manages (1-4)
@@ -251,20 +255,26 @@ local function moveToCol(targetCol)
 end
 
 local function navigateTo(targetRow, targetCol)
-    -- Row-first navigation corners at (targetRow, state.posCol).
-    -- If that corner IS the blocked cell, we need to detour around col 5.
-    -- Otherwise go directly: row first, then col.
-    local cornerRow = targetRow
-    local cornerCol = state.posCol
+    -- Row-first corners at (targetRow, state.posCol).
+    -- After that, col movement happens at targetRow.
+    -- We need a detour if either:
+    --   1. The row-first corner is the blocked cell (targetRow==5, posCol==5)
+    --   2. The col movement crosses col 5 while on row 5
+    --      (targetRow==5 and posCol and targetCol are on opposite sides of col 5)
 
-    local needsDetour = (cornerRow == BLOCK_ROW and cornerCol == BLOCK_COL)
+    local onBlockRow = (targetRow == BLOCK_ROW)
+    local colCrossesBlock = (state.posCol < BLOCK_COL and targetCol > BLOCK_COL)
+                         or (state.posCol > BLOCK_COL and targetCol < BLOCK_COL)
+                         or (state.posCol == BLOCK_COL or targetCol == BLOCK_COL)
+
+    local needsDetour = onBlockRow and colCrossesBlock
 
     if not needsDetour then
         return moveToRow(targetRow) and moveToCol(targetCol)
     end
 
-    -- Detour around col 5: go to detour col first, then row, then final col.
-    -- Stay on whichever side of col 5 we're currently on.
+    -- Detour: pick a safe col on the same side as where we currently are,
+    -- go there first, then row, then final col.
     local detourCol = (state.posCol < BLOCK_COL) and (BLOCK_COL - 1) or (BLOCK_COL + 1)
     if not moveToCol(detourCol) then return false end
     if not moveToRow(targetRow) then return false end
@@ -521,10 +531,16 @@ end
 local function workCycle()
     state.phase = "idle"; saveState()
 
-    local currentState = requestFarmState()
-    if not currentState then
-        sendAlert("Could not get farm state from central")
-        return false
+    local currentState
+    if DEBUG_ASSUME_EMPTY then
+        Version.log("DEBUG: assuming farm is empty")
+        currentState = {}
+    else
+        currentState = requestFarmState()
+        if not currentState then
+            sendAlert("Could not get farm state from central")
+            return false
+        end
     end
 
     local changes = computeChanges(currentState, DESIRED_CONFIG)
