@@ -229,15 +229,15 @@ local function drawControlTab()
         if worker.mode == "paused" then statusColor = colors.gray
         elseif worker.status == "error" then statusColor = colors.red end
 
-        screen:setCursorPos(w - 4, currentY)
+        screen:setCursorPos(w - 6, currentY)
         screen:setTextColor(statusColor)
-        screen:write(worker.mode == "paused" and "STOP" or "RUN")
+        screen:write(worker.mode == "paused" and "STP" or "RUN")
 
-        -- Tap anywhere on the row to open command panel
-        local rowBtn = UI.Button:new(1, currentY, w - 2, 1, "", function()
+        -- Small tap button at right edge to open command panel
+        local rowBtn = UI.Button:new(w - 2, currentY, 3, 1, "[>]", function()
             selectedWorker = id
             updateDisplay()
-        end, colors.black, colors.white)
+        end, colors.cyan, colors.black)
         screen:addButton(rowBtn)
 
         currentY = currentY + 1

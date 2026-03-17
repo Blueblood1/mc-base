@@ -277,62 +277,64 @@ local function drawWorkersTab()
     local currentY = 7
     local screenWidth, screenHeight = screen:getSize()
 
-    -- Draw turtle list
-    for id, turtle in pairs(turtles) do
-        if currentY >= screenHeight - 8 then break end
+    -- Only draw worker list buttons when no detail panel is open
+    if not selectedWorker then
+        for id, turtle in pairs(turtles) do
+            if currentY >= screenHeight - 8 then break end
 
-        local mode = State.getTurtleMode(centralState, id)
-        local statusColor = colors.green
-        local isUnpausable = UNPAUSABLE_WORKERS[turtle.name]
+            local mode = State.getTurtleMode(centralState, id)
+            local statusColor = colors.green
+            local isUnpausable = UNPAUSABLE_WORKERS[turtle.name]
 
-        if mode == "paused" then
-            statusColor = colors.gray
-        elseif turtle.status == "error" then
-            statusColor = colors.red
-        elseif turtle.status == "warning" then
-            statusColor = colors.yellow
+            if mode == "paused" then
+                statusColor = colors.gray
+            elseif turtle.status == "error" then
+                statusColor = colors.red
+            elseif turtle.status == "warning" then
+                statusColor = colors.yellow
+            end
+
+            screen:setCursorPos(1, currentY)
+            screen:setTextColor(colors.lightGray)
+            screen:write("[" .. id .. "] ")
+            screen:setTextColor(colors.white)
+            screen:write(turtle.name)
+
+            if isUnpausable then
+                screen:setTextColor(colors.orange)
+                screen:write(" [CRITICAL]")
+            end
+
+            if not isUnpausable then
+                screen:setCursorPos(25, currentY)
+                screen:setTextColor(statusColor)
+                screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
+            end
+
+            -- Detail button (clicking opens the worker panel)
+            local detailBtn = UI.Button:new(screenWidth - 16, currentY, 7, 1, "DETAIL", function()
+                selectedWorker = id
+            end, colors.cyan, colors.black)
+            screen:addButton(detailBtn)
+
+            -- Quick stop/start button
+            if isUnpausable then
+                screen:setCursorPos(screenWidth - 8, currentY)
+                screen:setTextColor(colors.gray)
+                screen:setBackgroundColor(colors.lightGray)
+                screen:write(" LOCKED ")
+                screen:setBackgroundColor(colors.black)
+            else
+                local buttonColor = mode == "paused" and colors.green or colors.red
+                local buttonText = mode == "paused" and "START" or "STOP"
+                local button = UI.Button:new(screenWidth - 8, currentY, 7, 1, buttonText, function()
+                    toggleTurtleMode(id)
+                end, buttonColor, colors.white)
+                screen:addButton(button)
+            end
+
+            currentY = currentY + 2
         end
-
-        screen:setCursorPos(1, currentY)
-        screen:setTextColor(colors.lightGray)
-        screen:write("[" .. id .. "] ")
-        screen:setTextColor(colors.white)
-        screen:write(turtle.name)
-
-        if isUnpausable then
-            screen:setTextColor(colors.orange)
-            screen:write(" [CRITICAL]")
-        end
-
-        if not isUnpausable then
-            screen:setCursorPos(25, currentY)
-            screen:setTextColor(statusColor)
-            screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
-        end
-
-        -- Detail button (clicking opens the worker panel)
-        local detailBtn = UI.Button:new(screenWidth - 16, currentY, 7, 1, "DETAIL", function()
-            selectedWorker = id
-        end, colors.cyan, colors.black)
-        screen:addButton(detailBtn)
-
-        -- Quick stop/start button
-        if isUnpausable then
-            screen:setCursorPos(screenWidth - 8, currentY)
-            screen:setTextColor(colors.gray)
-            screen:setBackgroundColor(colors.lightGray)
-            screen:write(" LOCKED ")
-            screen:setBackgroundColor(colors.black)
-        else
-            local buttonColor = mode == "paused" and colors.green or colors.red
-            local buttonText = mode == "paused" and "START" or "STOP"
-            local button = UI.Button:new(screenWidth - 8, currentY, 7, 1, buttonText, function()
-                toggleTurtleMode(id)
-            end, buttonColor, colors.white)
-            screen:addButton(button)
-        end
-
-        currentY = currentY + 2
     end
 
     -- Bottom buttons
