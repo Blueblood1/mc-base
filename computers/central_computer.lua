@@ -59,6 +59,45 @@ local currentTab = 1  -- 1 = Workers, 2 = Resources
 local selectedResource = nil
 local graphMode = "count"  -- "count" or "rate"
 
+-- ---------------------------------------------------------------------------
+-- Mystical Agriculture Farm State
+-- ---------------------------------------------------------------------------
+-- farmStates[farmId][slotIdx] = seedName (or "empty")
+-- farmConfigs[farmId] = {seedName = count}
+--
+-- These are persisted in central_state.txt alongside turtle modes.
+-- Edit farmConfigs directly in the state file, or send a set_farm_config command.
+
+local FARM_STATE_FILE = "farm_states.txt"
+
+local function loadFarmData()
+    if fs.exists(FARM_STATE_FILE) then
+        local f = fs.open(FARM_STATE_FILE, "r")
+        local data = textutils.unserialize(f.readAll())
+        f.close()
+        return data or {states = {}}
+    end
+    return {states = {}}
+end
+
+local function saveFarmData(data)
+    local f = fs.open(FARM_STATE_FILE, "w")
+    f.write(textutils.serialize(data))
+    f.close()
+end
+
+local farmData = {states = {}}
+
+local function getFarmState(farmId)
+    return farmData.states[farmId] or {}
+end
+
+local function setFarmSlot(farmId, slotIdx, seedName)
+    if not farmData.states[farmId] then farmData.states[farmId] = {} end
+    farmData.states[farmId][slotIdx] = (seedName == "empty" or seedName == nil) and "empty" or seedName
+    saveFarmData(farmData)
+end
+
 local stats = {
     totalTurtles = 0,
     activeTurtles = 0,
@@ -455,6 +494,16 @@ local function handleMessage(senderId, msgType, data)
             Network.send(senderId, Network.MSG_TYPES.TELEMETRY, {
                 workers = workerData
             })
+        elseif data.command == "get_farm_state" and data.farmId then
+            Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
+                command = "farm_state",
+                farmId  = data.farmId,
+                state   = getFarmState(data.farmId),
+            })
+
+        elseif data.command == "update_farm_slot" and data.farmId and data.slotIdx then
+            setFarmSlot(data.farmId, data.slotIdx, data.seedName)
+
         elseif data.command == "report_status" then
             -- Send worker list to requester
             local workerData = {}
@@ -538,6 +587,7 @@ local function main()
     
     -- Load state
     centralState = State.load()
+    farmData = loadFarmData()
     if ResourceTracker then
         resourceTracker = ResourceTracker.load()
         Version.log("Resource tracker loaded")

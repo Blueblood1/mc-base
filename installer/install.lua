@@ -114,8 +114,9 @@ local function install(args)
             print("  3. tree_farmer - Spruce tree farming")
             print("  4. wither_boss_farmer - Wither boss farming")
             print("  5. sheep_farmer - Sheep feeding automation")
+            print("  6. mystical_agriculture_farmer - Mystical Agriculture seed manager")
             print("")
-            write("Select turtle type (1-5): ")
+            write("Select turtle type (1-6): ")
             local choice = read()
             
             if choice == "1" then
@@ -128,6 +129,8 @@ local function install(args)
                 turtleType = "wither_boss_farmer"
             elseif choice == "5" then
                 turtleType = "sheep_farmer"
+            elseif choice == "6" then
+                turtleType = "mystical_agriculture_farmer"
             else
                 print("Invalid choice, defaulting to pig_feeder")
                 turtleType = "pig_feeder"
