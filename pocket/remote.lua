@@ -33,6 +33,7 @@ local centralId = nil
 local workers = {}
 local resourceTracker = nil
 local selectedResource = nil
+local selectedWorker = nil  -- worker ID for command panel
 local graphMode = "count"  -- "count" or "rate"
 local stats = {
     totalWorkers = 0,
@@ -85,18 +86,103 @@ local function requestTelemetry()
     end
 end
 
+-- Draw per-worker command panel (full screen on pocket)
+local function drawWorkerPanel(id)
+    local worker = workers[id]
+    if not worker then selectedWorker = nil; return end
+
+    local w, h = screen:getSize()
+    screen:clearButtons()
+
+    -- Header
+    screen:setCursorPos(1, 3)
+    screen:setTextColor(colors.yellow)
+    local name = worker.name or ("Worker " .. id)
+    screen:print(("[%d] %s"):format(id, name):sub(1, w))
+
+    -- Info
+    screen:setTextColor(colors.white)
+    screen:print("Status: " .. (worker.status or "unknown"))
+    screen:print("Mode:   " .. (worker.mode or "unknown"))
+
+    if worker.telemetry and worker.telemetry.fuel then
+        local f = worker.telemetry.fuel
+        screen:print("Fuel:   " .. f.level .. " (" .. f.percent .. "%)")
+    end
+
+    if worker.telemetry and worker.telemetry.task then
+        local t = worker.telemetry.task
+        local taskStr = t.phase or "idle"
+        if t.farm then taskStr = taskStr .. " farm " .. t.farm end
+        screen:print("Task:   " .. taskStr:sub(1, w - 8))
+    end
+
+    screen:print("")
+    screen:setTextColor(colors.gray)
+    screen:print("--- Commands ---")
+
+    local btnY = 10
+    local isUnpausable = UNPAUSABLE_WORKERS[worker.name]
+
+    -- UPDATE
+    local updateBtn = UI.Button:new(1, btnY, w, 2, "UPDATE (reload config)", function()
+        sendCommand("send_worker_command", {workerId = id, workerCommand = "update"})
+        table.insert(stats and stats.alerts or {}, "Update sent to " .. name)
+        selectedWorker = nil
+        updateDisplay()
+    end, colors.blue, colors.white)
+    screen:addButton(updateBtn)
+
+    -- STATUS
+    local statusBtn = UI.Button:new(1, btnY + 3, w, 2, "REQUEST STATUS", function()
+        sendCommand("send_worker_command", {workerId = id, workerCommand = "report_status"})
+        selectedWorker = nil
+        updateDisplay()
+    end, colors.green, colors.white)
+    screen:addButton(statusBtn)
+
+    -- STOP / START
+    if not isUnpausable then
+        local mode = worker.mode or "running"
+        local btnColor = mode == "paused" and colors.green or colors.red
+        local btnText = mode == "paused" and "START WORKER" or "STOP WORKER"
+        local toggleBtn = UI.Button:new(1, btnY + 6, w, 2, btnText, function()
+            toggleWorkerMode(id)
+            selectedWorker = nil
+            updateDisplay()
+        end, btnColor, colors.white)
+        screen:addButton(toggleBtn)
+    end
+
+    -- BACK
+    local backBtn = UI.Button:new(1, h - 2, w, 2, "< BACK", function()
+        selectedWorker = nil
+        updateDisplay()
+    end, colors.lightGray, colors.black)
+    screen:addButton(backBtn)
+
+    screen:drawButtons()
+end
+
 -- Draw Control tab
 local function drawControlTab()
     local w, h = screen:getSize()
+
+    -- If a worker is selected, show its command panel instead
+    if selectedWorker then
+        drawWorkerPanel(selectedWorker)
+        return
+    end
+
     screen:clearButtons()
-    
+
     -- Header info
     screen:setCursorPos(1, 3)
     screen:setTextColor(colors.cyan)
     screen:print("Workers: " .. stats.totalWorkers)
     screen:print("Active: " .. stats.activeWorkers)
     screen:print("Paused: " .. stats.pausedWorkers)
-    
+
     -- Show connection status
     screen:setTextColor(colors.gray)
     if centralId then
@@ -104,7 +190,7 @@ local function drawControlTab()
     else
         screen:print("Central: NONE")
     end
-    
+
     if not centralId then
         screen:setTextColor(colors.red)
         screen:print("No central connection!")
@@ -112,81 +198,57 @@ local function drawControlTab()
         screen:setTextColor(colors.yellow)
         screen:print("Waiting for data...")
     end
-    
+
     screen:print("")
     screen:setTextColor(colors.white)
-    
-    local currentY = 8
+
+    local currentY = 9
     local maxY = h - 4
-    
-    -- Draw worker list (compact)
+
+    -- Draw worker list - each row is tappable to open command panel
     for id, worker in pairs(workers) do
-        if currentY >= maxY then
-            break
-        end
-        
+        if currentY >= maxY then break end
+
         local isUnpausable = UNPAUSABLE_WORKERS[worker.name]
-        
-        -- Worker name and status
+
         screen:setCursorPos(1, currentY)
         screen:setTextColor(colors.lightGray)
         screen:write("[" .. id .. "] ")
-        
+
         screen:setTextColor(colors.white)
         local name = worker.name or ("Worker " .. id)
-        if #name > 12 then
-            name = name:sub(1, 12)
-        end
-        screen:write(name)
-        
-        -- Show if unpausable
+        screen:write(name:sub(1, w - 10))
+
         if isUnpausable then
             screen:setTextColor(colors.orange)
-            screen:write(" [!]")
+            screen:write(" !")
         end
-        
-        -- Status indicator (compact) - skip for unpausable workers
-        if not isUnpausable then
-            local statusColor = colors.green
-            if worker.mode == "paused" then
-                statusColor = colors.gray
-            elseif worker.status == "error" then
-                statusColor = colors.red
-            elseif worker.status == "warning" then
-                statusColor = colors.yellow
-            end
-            
-            screen:setCursorPos(w - 5, currentY)
-            screen:setTextColor(statusColor)
-            screen:write(worker.mode == "paused" and "PAUSE" or "WORK")
-        end
-        
-        -- Toggle button (disabled for unpausable workers)
-        if isUnpausable then
-            -- Show locked indicator
-            screen:setCursorPos(w - 2, currentY)
-            screen:setTextColor(colors.gray)
-            screen:write("--")
-        else
-            -- Normal toggle button
-            local btnColor = worker.mode == "paused" and colors.green or colors.red
-            local btnText = worker.mode == "paused" and ">" or "||"
-            local button = UI.Button:new(w - 2, currentY, 2, 1, btnText, function()
-                toggleWorkerMode(id)
-            end, btnColor, colors.white)
-            screen:addButton(button)
-        end
-        
+
+        -- Status indicator
+        local statusColor = colors.green
+        if worker.mode == "paused" then statusColor = colors.gray
+        elseif worker.status == "error" then statusColor = colors.red end
+
+        screen:setCursorPos(w - 4, currentY)
+        screen:setTextColor(statusColor)
+        screen:write(worker.mode == "paused" and "STOP" or "RUN")
+
+        -- Tap anywhere on the row to open command panel
+        local rowBtn = UI.Button:new(1, currentY, w - 2, 1, "", function()
+            selectedWorker = id
+            updateDisplay()
+        end, colors.black, colors.white)
+        screen:addButton(rowBtn)
+
         currentY = currentY + 1
     end
-    
+
     -- Bottom buttons
     local btnY = h - 2
-    
+
     local refreshBtn = UI.Button:new(1, btnY, 8, 2, "REFRESH", function()
-        local success = requestTelemetry()
-        if not success then
-            -- Show error on screen briefly
+        local ok = requestTelemetry()
+        if not ok then
             screen:setCursorPos(1, btnY - 1)
             screen:setTextColor(colors.red)
             screen:write("No central!")
@@ -195,12 +257,12 @@ local function drawControlTab()
         end
     end, colors.blue, colors.white)
     screen:addButton(refreshBtn)
-    
+
     local quitBtn = UI.Button:new(w - 7, btnY, 7, 2, "QUIT", function()
         error("User quit")
     end, colors.red, colors.white)
     screen:addButton(quitBtn)
-    
+
     screen:drawButtons()
 end
 

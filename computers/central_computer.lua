@@ -58,6 +58,7 @@ local rsMonitorId = nil
 local currentTab = 1  -- 1 = Workers, 2 = Resources
 local selectedResource = nil
 local graphMode = "count"  -- "count" or "rate"
+local selectedWorker = nil  -- worker ID for detail panel
 
 -- ---------------------------------------------------------------------------
 -- Mystical Agriculture Farm State
@@ -148,43 +149,142 @@ local function toggleTurtleMode(turtleId)
     table.insert(stats.alerts, os.date("%H:%M:%S") .. " - " .. turtleName .. " " .. newMode)
 end
 
+-- Draw worker detail panel (overlaid when a worker is selected)
+local function drawWorkerDetail(id)
+    local worker = turtles[id]
+    if not worker then selectedWorker = nil; return end
+
+    local screenWidth, screenHeight = screen:getSize()
+    local panelX, panelY = 3, 4
+    local panelW, panelH = screenWidth - 4, 14
+
+    -- Panel background
+    screen.output.setBackgroundColor(colors.gray)
+    for row = panelY, panelY + panelH do
+        screen.output.setCursorPos(panelX, row)
+        screen.output.write(string.rep(" ", panelW))
+    end
+    screen.output.setBackgroundColor(colors.black)
+
+    local function px(x, y) screen.output.setCursorPos(panelX + x, panelY + y) end
+
+    -- Title
+    screen.output.setBackgroundColor(colors.gray)
+    px(1, 0); screen.output.setTextColor(colors.yellow)
+    screen.output.write(("[%d] %s"):format(id, worker.name):sub(1, panelW - 2))
+
+    -- Info rows
+    local mode = State.getTurtleMode(centralState, id)
+    local fuel = worker.telemetry and worker.telemetry.fuel
+    local task = worker.telemetry and worker.telemetry.task
+
+    px(1, 2); screen.output.setTextColor(colors.white)
+    screen.output.write("Status: ")
+    screen.output.setTextColor(worker.status == "error" and colors.red or colors.green)
+    screen.output.write(worker.status or "unknown")
+
+    px(1, 3); screen.output.setTextColor(colors.white)
+    screen.output.write("Mode:   ")
+    screen.output.setTextColor(mode == "paused" and colors.gray or colors.lime)
+    screen.output.write(mode)
+
+    if fuel then
+        px(1, 4); screen.output.setTextColor(colors.white)
+        screen.output.write("Fuel:   ")
+        screen.output.setTextColor(colors.cyan)
+        screen.output.write(tostring(fuel.level) .. " (" .. tostring(fuel.percent) .. "%)")
+    end
+
+    if task then
+        px(1, 5); screen.output.setTextColor(colors.white)
+        screen.output.write("Task:   ")
+        screen.output.setTextColor(colors.lightGray)
+        local taskStr = task.phase or "idle"
+        if task.farm then taskStr = taskStr .. " farm " .. task.farm end
+        screen.output.write(taskStr:sub(1, panelW - 10))
+    end
+
+    local timeSince = math.floor((os.epoch("utc") - worker.lastUpdate) / 1000)
+    px(1, 6); screen.output.setTextColor(colors.gray)
+    screen.output.write("Last seen: " .. timeSince .. "s ago")
+
+    -- Command buttons
+    local isUnpausable = UNPAUSABLE_WORKERS[worker.name]
+    local btnY = panelY + 8
+
+    -- UPDATE button - always available
+    local updateBtn = UI.Button:new(panelX + 1, btnY, 10, 2, "UPDATE", function()
+        Network.send(id, Network.MSG_TYPES.COMMAND, {command = "update"})
+        table.insert(stats.alerts, os.date("%H:%M:%S") .. " - Update sent to " .. worker.name)
+        selectedWorker = nil
+    end, colors.blue, colors.white)
+    screen:addButton(updateBtn)
+
+    -- STATUS button
+    local statusBtn = UI.Button:new(panelX + 13, btnY, 10, 2, "STATUS", function()
+        Network.send(id, Network.MSG_TYPES.COMMAND, {command = "report_status"})
+        table.insert(stats.alerts, os.date("%H:%M:%S") .. " - Status requested from " .. worker.name)
+        selectedWorker = nil
+    end, colors.green, colors.white)
+    screen:addButton(statusBtn)
+
+    -- STOP/START button (only for pausable workers)
+    if not isUnpausable then
+        local btnColor = mode == "paused" and colors.green or colors.red
+        local btnText = mode == "paused" and "START" or "STOP"
+        local toggleBtn = UI.Button:new(panelX + 26, btnY, 10, 2, btnText, function()
+            toggleTurtleMode(id)
+            selectedWorker = nil
+        end, btnColor, colors.white)
+        screen:addButton(toggleBtn)
+    end
+
+    -- BACK button
+    local backBtn = UI.Button:new(panelX + panelW - 8, panelY, 7, 1, "< BACK", function()
+        selectedWorker = nil
+    end, colors.lightGray, colors.black)
+    screen:addButton(backBtn)
+
+    screen.output.setBackgroundColor(colors.black)
+end
+
 -- Draw Workers tab
 local function drawWorkersTab()
     screen:clear()
     screen:clearButtons()
-    
+
     checkCriticalWorkers()
-    
+
     -- Header
     screen:setTextColor(colors.yellow)
     screen:print("=== WORKERS ===")
     local buildInfo = Version and (" | Build: " .. Version.get()) or ""
     screen:print("Computer ID: " .. os.getComputerID() .. buildInfo)
     screen:print("")
-    
+
     -- Stats
     screen:setTextColor(colors.cyan)
     screen:print("Connected: " .. stats.totalTurtles .. " | Active: " .. stats.activeTurtles .. " | Paused: " .. stats.pausedTurtles)
-    
+
     if #stats.criticalWorkersMissing > 0 then
         screen:setTextColor(colors.red)
         screen:print("CRITICAL: " .. table.concat(stats.criticalWorkersMissing, ", "))
     end
-    
+
     screen:print("")
     screen:setTextColor(colors.white)
-    
+
     local currentY = 7
     local screenWidth, screenHeight = screen:getSize()
-    
+
     -- Draw turtle list
     for id, turtle in pairs(turtles) do
         if currentY >= screenHeight - 8 then break end
-        
+
         local mode = State.getTurtleMode(centralState, id)
         local statusColor = colors.green
         local isUnpausable = UNPAUSABLE_WORKERS[turtle.name]
-        
+
         if mode == "paused" then
             statusColor = colors.gray
         elseif turtle.status == "error" then
@@ -192,25 +292,31 @@ local function drawWorkersTab()
         elseif turtle.status == "warning" then
             statusColor = colors.yellow
         end
-        
+
         screen:setCursorPos(1, currentY)
         screen:setTextColor(colors.lightGray)
         screen:write("[" .. id .. "] ")
         screen:setTextColor(colors.white)
         screen:write(turtle.name)
-        
+
         if isUnpausable then
             screen:setTextColor(colors.orange)
             screen:write(" [CRITICAL]")
         end
-        
+
         if not isUnpausable then
             screen:setCursorPos(25, currentY)
             screen:setTextColor(statusColor)
             screen:write(mode == "paused" and "PAUSED" or turtle.status:upper())
         end
-        
-        -- Control button
+
+        -- Detail button (clicking opens the worker panel)
+        local detailBtn = UI.Button:new(screenWidth - 16, currentY, 7, 1, "DETAIL", function()
+            selectedWorker = id
+        end, colors.cyan, colors.black)
+        screen:addButton(detailBtn)
+
+        -- Quick stop/start button
         if isUnpausable then
             screen:setCursorPos(screenWidth - 8, currentY)
             screen:setTextColor(colors.gray)
@@ -225,38 +331,43 @@ local function drawWorkersTab()
             end, buttonColor, colors.white)
             screen:addButton(button)
         end
-        
+
         currentY = currentY + 2
     end
-    
+
     -- Bottom buttons
     local buttonY = screenHeight - 3
-    
-    local updateBtn = UI.Button:new(2, buttonY, 10, 2, "UPDATE", function()
+
+    local updateBtn = UI.Button:new(2, buttonY, 10, 2, "UPDATE ALL", function()
         Network.broadcast(Network.MSG_TYPES.COMMAND, {command = "update"})
         table.insert(stats.alerts, os.date("%H:%M:%S") .. " - Update broadcast")
     end, colors.blue, colors.white)
     screen:addButton(updateBtn)
-    
+
     local refreshBtn = UI.Button:new(14, buttonY, 10, 2, "REFRESH", function()
         Network.broadcast(Network.MSG_TYPES.COMMAND, {command = "report_status"})
     end, colors.green, colors.white)
     screen:addButton(refreshBtn)
-    
-    -- Only show Resources button if libraries are loaded
+
     if ResourceTracker and Graph then
         local resourcesBtn = UI.Button:new(26, buttonY, 12, 2, "RESOURCES", function()
             currentTab = 2
         end, colors.purple, colors.white)
         screen:addButton(resourcesBtn)
     end
-    
+
     local quitBtn = UI.Button:new(40, buttonY, 8, 2, "QUIT", function()
         error("User quit")
     end, colors.red, colors.white)
     screen:addButton(quitBtn)
-    
+
     screen:drawButtons()
+
+    -- Draw detail panel on top if a worker is selected
+    if selectedWorker then
+        drawWorkerDetail(selectedWorker)
+        screen:drawButtons()
+    end
 end
 
 -- Draw Resources tab
@@ -494,6 +605,10 @@ local function handleMessage(senderId, msgType, data)
             Network.send(senderId, Network.MSG_TYPES.TELEMETRY, {
                 workers = workerData
             })
+        elseif data.command == "send_worker_command" and data.workerId and data.workerCommand then
+            Network.send(data.workerId, Network.MSG_TYPES.COMMAND, {command = data.workerCommand})
+            table.insert(stats.alerts, os.date("%H:%M:%S") .. " - Remote cmd '" .. data.workerCommand .. "' -> " .. data.workerId)
+
         elseif data.command == "get_farm_state" and data.farmId then
             Network.send(senderId, Network.MSG_TYPES.RESPONSE, {
                 command = "farm_state",
