@@ -472,9 +472,9 @@ local function countSeeds(seedName)
 end
 
 local function getRsBridge()
-    local bridge = peripheral.wrap("top")
+    local bridge = peripheral.find("rs_bridge")
     if not bridge then
-        sendAlert("RS Bridge not found above turtle")
+        sendAlert("RS Bridge not found - ensure it is adjacent to the turtle")
     end
     return bridge
 end
@@ -801,7 +801,39 @@ local function workCycle()
     end
 
     -- 4. Load fuel and seeds at farm 1 park position
-    TurtleLib.ensureFuelForCycle(CYCLE_FUEL_REQUIREMENT, "right", sendAlert, sendTelemetry)
+    -- Refuel via RS bridge if needed (pulls coal blocks, refuels, returns remainder)
+    local currentFuel = turtle.getFuelLevel()
+    if currentFuel < CYCLE_FUEL_REQUIREMENT then
+        Version.log("FUEL LOW: " .. currentFuel .. "/" .. CYCLE_FUEL_REQUIREMENT .. " - pulling coal from RS...")
+        local bridge = getRsBridge()
+        if not bridge then
+            sendAlert("Cannot refuel: RS Bridge not found")
+            return false
+        end
+        -- Pull enough coal blocks to cover the deficit (1 coal block = 800 fuel)
+        local needed = CYCLE_FUEL_REQUIREMENT - currentFuel
+        local coalBlocks = math.ceil(needed / 800)
+        local got = bridge.exportItem({name = "minecraft:coal_block", count = coalBlocks}, "down")
+        if not got or got == 0 then
+            sendAlert("Cannot refuel: no coal blocks in RS storage")
+            return false
+        end
+        -- Refuel from inventory then return leftovers
+        for slot = 1, 16 do
+            local item = turtle.getItemDetail(slot)
+            if item and item.name == "minecraft:coal_block" then
+                turtle.select(slot)
+                turtle.refuel(turtle.getItemCount(slot))
+            end
+        end
+        -- Return any unused coal blocks
+        bridge.importItem({name = "minecraft:coal_block", count = 64}, "down")
+        Version.log("Fuel after refuel: " .. turtle.getFuelLevel())
+        if turtle.getFuelLevel() < CYCLE_FUEL_REQUIREMENT then
+            sendAlert("Still insufficient fuel after refuel: " .. turtle.getFuelLevel())
+            return false
+        end
+    end
     checkPause()
 
     if #seedLoadList > 0 then
