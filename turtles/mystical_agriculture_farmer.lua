@@ -29,9 +29,14 @@ local FARM2_OFFSET = 17  -- blocks left from farm 1 park to farm 2 park
 -- Edit and push an update to change what's planted.
 -- Total per farm should not exceed TOTAL_SLOTS (36).
 -- ---------------------------------------------------------------------------
+-- mysticalagriculture:honey_seeds
+
 local FARM_CONFIGS = {
     [1] = {
-        ["mysticalagriculture:honey_seeds"] = 0,
+        ["mysticalagriculture:fire"] = 9,
+        ["mysticalagriculture:earth"] = 9,
+        ["mysticalagriculture:water"] = 9,
+        ["mysticalagriculture:air"] = 9,
     },
     [2] = {
         ["mysticalagriculture:nature_seeds"] = 0,
