@@ -39,6 +39,9 @@ local FARM_CONFIGS = {
     [3] = {
         ["mysticalagriculture:inferium_seeds"] = 36,
     },
+    [4] = {
+        ["mysticalagriculture:inferium_seeds"] = 36,
+    },
 }
 
 -- Shared state for command listener
@@ -385,6 +388,68 @@ local function travelFromFarm3ToFarm1()
     return true
 end
 
+-- Farm 4 route from farm 1 park:
+--   left 4, forward 15, left 13 → face forward
+local function travelToFarm4()
+    Version.log("Travelling to farm 4...")
+    state.currentFarm = 4
+    saveState()
+    faceDirection(3)  -- face left
+    for _ = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 4 (left leg)")
+            return false
+        end
+    end
+    faceDirection(0)  -- face forward
+    for _ = 1, 15 do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 4 (forward leg)")
+            return false
+        end
+    end
+    faceDirection(3)  -- face left again
+    for _ = 1, 13 do
+        if not turtle.forward() then
+            sendAlert("Blocked travelling to farm 4 (left leg 2)")
+            return false
+        end
+    end
+    faceDirection(0)  -- face into farm 4
+    saveState()
+    return true
+end
+
+local function travelFromFarm4ToFarm1()
+    Version.log("Travelling back to farm 1 from farm 4...")
+    state.currentFarm = 1
+    saveState()
+    faceDirection(1)  -- face right (reverse of left leg 2)
+    for _ = 1, 13 do
+        if not turtle.forward() then
+            sendAlert("Blocked returning from farm 4 (right leg)")
+            return false
+        end
+    end
+    faceDirection(2)  -- face back (reverse of forward leg)
+    for _ = 1, 15 do
+        if not turtle.forward() then
+            sendAlert("Blocked returning from farm 4 (back leg)")
+            return false
+        end
+    end
+    faceDirection(1)  -- face right (reverse of left leg 1)
+    for _ = 1, 4 do
+        if not turtle.forward() then
+            sendAlert("Blocked returning from farm 4 (right leg 2)")
+            return false
+        end
+    end
+    faceDirection(0)  -- face into farm 1
+    saveState()
+    return true
+end
+
 -- ---------------------------------------------------------------------------
 -- Seed inventory helpers
 -- ---------------------------------------------------------------------------
@@ -650,7 +715,7 @@ local function workCycle()
 
     -- 1. Gather current state for all farms
     local farmStates = {}
-    for farmId = 1, 3 do
+    for farmId = 1, 4 do
         if DEBUG_ASSUME_EMPTY then
             Version.log("DEBUG: assuming farm " .. farmId .. " is empty")
             farmStates[farmId] = {}
@@ -666,12 +731,12 @@ local function workCycle()
 
     -- 2. Compute changes for all farms
     local allChanges = {}
-    for farmId = 1, 3 do
+    for farmId = 1, 4 do
         allChanges[farmId] = computeChanges(farmStates[farmId], FARM_CONFIGS[farmId])
         Version.log("Farm " .. farmId .. ": " .. #allChanges[farmId] .. " changes needed")
     end
 
-    local totalChanges = #allChanges[1] + #allChanges[2] + #allChanges[3]
+    local totalChanges = #allChanges[1] + #allChanges[2] + #allChanges[3] + #allChanges[4]
     if totalChanges == 0 then
         Version.log("No changes needed on any farm.")
         stats.cyclesCompleted = stats.cyclesCompleted + 1
@@ -682,7 +747,7 @@ local function workCycle()
 
     -- 3. Collect all seeds needed across all farms
     local seedsNeeded = {}
-    for farmId = 1, 3 do
+    for farmId = 1, 4 do
         for _, c in ipairs(allChanges[farmId]) do
             if c.action == "plant" then
                 seedsNeeded[c.seedName] = (seedsNeeded[c.seedName] or 0) + 1
@@ -743,19 +808,38 @@ local function workCycle()
     local ok3 = executeChanges(allChanges[3], 3)
     exitFarm()
 
-    -- 8. Travel back to farm 1 park position
+    if not ok3 then
+        sendAlert("Farm 3 work failed")
+        travelFromFarm3ToFarm1()
+        depositSeeds()
+        return false
+    end
+
+    -- 8. Travel back to farm 1, then on to farm 4
     travelFromFarm3ToFarm1()
 
-    -- 9. Deposit leftover seeds
+    if not travelToFarm4() then
+        depositSeeds()
+        return false
+    end
+
+    enterFarm()
+    local ok4 = executeChanges(allChanges[4], 4)
+    exitFarm()
+
+    -- 9. Travel back to farm 1 park position
+    travelFromFarm4ToFarm1()
+
+    -- 10. Deposit leftover seeds
     depositSeeds()
 
-    local ok = ok1 and ok2 and ok3
+    local ok = ok1 and ok2 and ok3 and ok4
     if ok then
         stats.cyclesCompleted = stats.cyclesCompleted + 1
         stats.lastError = nil
-        Version.log("Cycle complete! All 3 farms done.")
+        Version.log("Cycle complete! All 4 farms done.")
     else
-        sendAlert("Farm 3 work failed")
+        sendAlert("Farm 4 work failed")
     end
 
     sendTelemetry()
