@@ -31,16 +31,16 @@ local FARM2_OFFSET = 17  -- blocks left from farm 1 park to farm 2 park
 -- ---------------------------------------------------------------------------
 local FARM_CONFIGS = {
     [1] = {
-        ["mysticalagriculture:honey_seeds"] = 36,
+        ["mysticalagriculture:honey_seeds"] = 0,
     },
     [2] = {
-        ["mysticalagriculture:nature_seeds"] = 36,
+        ["mysticalagriculture:nature_seeds"] = 0,
     },
     [3] = {
-        ["mysticalagriculture:fire_seeds"] = 36,
+        ["mysticalagriculture:fire_seeds"] = 0,
     },
     [4] = {
-        ["mysticalagriculture:nether_quartz_seeds"] = 36,
+        ["mysticalagriculture:nether_quartz_seeds"] = 0,
     },
 }
 
