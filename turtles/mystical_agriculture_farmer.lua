@@ -220,28 +220,69 @@ local function stepForward()
     return false
 end
 
+-- Cells that are physically blocked and cannot be entered
+local BLOCKED = {
+    [{5, 5}] = true,  -- centre cable
+}
+local function isBlocked(row, col)
+    for _, b in ipairs({{5, 5}}) do
+        if b[1] == row and b[2] == col then return true end
+    end
+    return false
+end
+
 local function navigateTo(targetRow, targetCol)
-    -- Move along row axis first
-    local rowDiff = targetRow - state.posRow
-    if rowDiff < 0 then
-        -- target row is lower number = forward (facing 0)
-        faceDirection(0)
-        for _ = 1, -rowDiff do if not stepForward() then return false end end
-    elseif rowDiff > 0 then
-        -- target row is higher number = back (facing 2)
-        faceDirection(2)
-        for _ = 1, rowDiff do if not stepForward() then return false end end
+    -- Determine if row-first path would pass through a blocked cell.
+    -- Row-first means we travel along col=state.posCol until we hit targetRow,
+    -- so the intermediate cell at (targetRow, state.posCol) must not be blocked.
+    -- Col-first means we travel along row=state.posRow until we hit targetCol,
+    -- so the intermediate cell at (state.posRow, targetCol) must not be blocked.
+    local rowFirstBlocked = isBlocked(targetRow, state.posCol)
+    local colFirstBlocked = isBlocked(state.posRow, targetCol)
+
+    -- Choose order: prefer row-first unless it's blocked
+    local doRowFirst = not rowFirstBlocked
+
+    -- If both are blocked we need a two-step detour via a safe waypoint.
+    -- In practice with only one blocked cell this shouldn't happen, but handle it.
+    if rowFirstBlocked and colFirstBlocked then
+        -- Detour: move to (state.posRow, targetCol-1) then (targetRow, targetCol)
+        -- or any adjacent safe cell - pick col offset by 1
+        local detourCol = targetCol + (targetCol <= state.posCol and 1 or -1)
+        navigateTo(targetRow, detourCol)
+        navigateTo(targetRow, targetCol)
+        return true
     end
-    -- Then col axis
-    local colDiff = targetCol - state.posCol
-    if colDiff > 0 then
-        faceDirection(1)
-        for _ = 1, colDiff do if not stepForward() then return false end end
-    elseif colDiff < 0 then
-        faceDirection(3)
-        for _ = 1, -colDiff do if not stepForward() then return false end end
+
+    local function moveRow()
+        local rowDiff = targetRow - state.posRow
+        if rowDiff < 0 then
+            faceDirection(0)
+            for _ = 1, -rowDiff do if not stepForward() then return false end end
+        elseif rowDiff > 0 then
+            faceDirection(2)
+            for _ = 1, rowDiff do if not stepForward() then return false end end
+        end
+        return true
     end
-    return true
+
+    local function moveCol()
+        local colDiff = targetCol - state.posCol
+        if colDiff > 0 then
+            faceDirection(1)
+            for _ = 1, colDiff do if not stepForward() then return false end end
+        elseif colDiff < 0 then
+            faceDirection(3)
+            for _ = 1, -colDiff do if not stepForward() then return false end end
+        end
+        return true
+    end
+
+    if doRowFirst then
+        return moveRow() and moveCol()
+    else
+        return moveCol() and moveRow()
+    end
 end
 
 local function returnHome()
