@@ -471,40 +471,58 @@ local function countSeeds(seedName)
     return total
 end
 
--- Seed chest is directly behind home position (facing=2)
-local function loadSeedsFromChest(seedList)
-    Version.log("Loading seeds from chest...")
-    faceDirection(2)
+local function getRsBridge()
+    local bridge = peripheral.wrap("top")
+    if not bridge then
+        sendAlert("RS Bridge not found above turtle")
+    end
+    return bridge
+end
+
+-- Pull seeds from RS storage into turtle inventory via the bridge above.
+local function loadSeedsFromBridge(seedList)
+    Version.log("Loading seeds from RS Bridge...")
+    local bridge = getRsBridge()
+    if not bridge then return end
+
     for _, entry in ipairs(seedList) do
         local needed = entry.count - countSeeds(entry.name)
         if needed > 0 then
-            for slot = SEED_SLOTS_START, SEED_SLOTS_END do
-                if turtle.getItemCount(slot) == 0 then
-                    turtle.select(slot)
-                    local remaining = needed
-                    while remaining > 0 do
-                        if not turtle.suck(math.min(remaining, 64)) then break end
-                        local item = turtle.getItemDetail(slot)
-                        if item then remaining = remaining - item.count else break end
-                    end
-                    break
-                end
+            -- exportItemToPeripheral pushes items from RS into an adjacent inventory.
+            -- The turtle itself is the target - use "turtle" as the target name,
+            -- or use importItemFromPeripheral depending on AP version.
+            -- AP's exportItem: bridge.exportItem({name=..., count=...}, "top") exports
+            -- from RS into the inventory on that side of the bridge.
+            -- Since bridge is above turtle, export downward ("down" from bridge's perspective
+            -- = "top" from turtle's perspective). We call from the bridge side:
+            local result = bridge.exportItem({name = entry.name, count = needed}, "down")
+            if not result or result == 0 then
+                sendAlert("Could not pull " .. entry.name .. " from RS storage")
+            else
+                Version.log("Pulled " .. result .. "x " .. entry.name)
             end
         end
     end
-    faceDirection(0)
 end
 
+-- Dump all turtle inventory slots back into RS storage via the bridge above.
 local function depositSeeds()
-    Version.log("Depositing leftover seeds...")
-    faceDirection(2)
-    for slot = SEED_SLOTS_START, SEED_SLOTS_END do
-        if turtle.getItemCount(slot) > 0 then
-            turtle.select(slot)
-            turtle.drop()
+    Version.log("Depositing seeds to RS Bridge...")
+    local bridge = getRsBridge()
+    if not bridge then
+        -- Fallback: just drop items (shouldn't happen)
+        for slot = SEED_SLOTS_START, SEED_SLOTS_END do
+            if turtle.getItemCount(slot) > 0 then
+                turtle.select(slot)
+                turtle.dropUp()
+            end
         end
+        return
     end
-    faceDirection(0)
+
+    -- importItem pulls from an adjacent inventory into RS storage.
+    -- Import everything from the turtle (below the bridge = "down" from bridge side).
+    bridge.importItem({count = 64 * 16}, "down")
 end
 
 -- Deposit all seeds then reload only what's needed for the remaining farm changes.
@@ -523,7 +541,7 @@ local function depositAndReload(remainingChanges)
         table.insert(seedLoadList, {name = name, count = count})
     end
     if #seedLoadList > 0 then
-        loadSeedsFromChest(seedLoadList)
+        loadSeedsFromBridge(seedLoadList)
     end
 end
 
@@ -784,7 +802,7 @@ local function workCycle()
     checkPause()
 
     if #seedLoadList > 0 then
-        loadSeedsFromChest(seedLoadList)
+        loadSeedsFromBridge(seedLoadList)
     end
 
     -- 5. Work farm 1
