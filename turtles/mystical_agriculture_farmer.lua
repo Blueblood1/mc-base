@@ -29,7 +29,35 @@ local FARM2_OFFSET = 17  -- blocks left from farm 1 park to farm 2 park
 -- Edit and push an update to change what's planted.
 -- Total per farm should not exceed TOTAL_SLOTS (36).
 -- ---------------------------------------------------------------------------
--- mysticalagriculture:honey_seeds
+
+-- Farm 1 (36)
+
+-- mysticalagriculture:fire_seeds (9)
+-- mysticalagriculture:earth_seeds (9)
+-- mysticalagriculture:water_seeds (9)
+-- mysticalagriculture:air_seeds (9)
+
+-- Farm 2 (36)
+-- mysticalagriculture:honey_seeds (20)
+-- mysticalagriculture:nature_seeds (5)
+-- mysticalagriculture:dye_seeds (5)
+-- mysticalagriculture:wood_seeds (6)
+
+-- Farm 3 (36)
+-- mysticalagriculture:nether_quartz_seeds (15)
+-- mysticalagriculture:nether_seeds (2)
+-- mysticalagriculture:glowstone_seeds (14)
+-- mysticalagriculture:ghast_seeds (1)
+-- mysticalagriculture:soulium_seeds (2)
+-- mysticalagriculture:soularium_seeds (2)
+
+-- Farm 4 (36)
+-- mysticalagriculture:certus_quartz_seeds (11)
+-- mysticalagriculture:silicon_seeds (10)
+-- mysticalagriculture:grains_of_infinity_seeds (4)
+-- mysticalagriculture:obsidian_seeds (6)
+-- mysticalagriculture:refined_obsidian_seeds (5)
+
 
 local FARM_CONFIGS = {
     [1] = {
