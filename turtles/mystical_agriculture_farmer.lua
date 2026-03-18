@@ -58,13 +58,18 @@ local FARM2_OFFSET = 17  -- blocks left from farm 1 park to farm 2 park
 -- mysticalagriculture:obsidian_seeds (6)
 -- mysticalagriculture:refined_obsidian_seeds (5)
 
+-- mysticalagriculture:deepslate_seeds (5)
+
 
 local FARM_CONFIGS = {
+    -- [1] = {
+    --     ["mysticalagriculture:fire_seeds"]  = 9,
+    --     ["mysticalagriculture:earth_seeds"] = 9,
+    --     ["mysticalagriculture:water_seeds"] = 9,
+    --     ["mysticalagriculture:air_seeds"]   = 9,
+    -- },
     [1] = {
-        ["mysticalagriculture:fire_seeds"]  = 9,
-        ["mysticalagriculture:earth_seeds"] = 9,
-        ["mysticalagriculture:water_seeds"] = 9,
-        ["mysticalagriculture:air_seeds"]   = 9,
+        ["mysticalagriculture:deepslate_seeds"]  = 36
     },
     [2] = {
         ["mysticalagriculture:honey_seeds"]  = 20,
