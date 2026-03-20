@@ -72,7 +72,8 @@ local FARM_CONFIGS = {
         ["mysticalagriculture:deepslate_seeds"]  = 36
     },
     [2] = {
-        ["mysticalagriculture:honey_seeds"]  = 20,
+        -- ["mysticalagriculture:honey_seeds"]  = 20,
+        ["mysticalagriculture:coal_seeds"]  = 20,
         ["mysticalagriculture:nature_seeds"] = 5,
         ["mysticalagriculture:dye_seeds"]    = 5,
         ["mysticalagriculture:wood_seeds"]   = 6,
