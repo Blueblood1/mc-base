@@ -83,13 +83,16 @@ local FARM_CONFIGS = {
         ["mysticalagriculture:redstone_seeds"]  = 18,
         ["mysticalagriculture:gold_seeds"]  = 18
     },
+    -- [3] = {
+    --     ["mysticalagriculture:nether_quartz_seeds"] = 15,
+    --     ["mysticalagriculture:nether_seeds"]        = 2,
+    --     ["mysticalagriculture:glowstone_seeds"]     = 14,
+    --     ["mysticalagriculture:ghast_seeds"]         = 1,
+    --     ["mysticalagriculture:soulium_seeds"]       = 2,
+    --     ["mysticalagriculture:soularium_seeds"]     = 2,
+    -- },
     [3] = {
-        ["mysticalagriculture:nether_quartz_seeds"] = 15,
-        ["mysticalagriculture:nether_seeds"]        = 2,
-        ["mysticalagriculture:glowstone_seeds"]     = 14,
-        ["mysticalagriculture:ghast_seeds"]         = 1,
-        ["mysticalagriculture:soulium_seeds"]       = 2,
-        ["mysticalagriculture:soularium_seeds"]     = 2,
+        ["mysticalagriculture:redstone_seeds"] = 36
     },
     [4] = {
         ["mysticalagriculture:certus_quartz_seeds"]       = 11,
