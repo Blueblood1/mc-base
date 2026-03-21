@@ -76,10 +76,12 @@ local FARM_CONFIGS = {
     },
     [2] = {
         -- ["mysticalagriculture:honey_seeds"]  = 20,
-        ["mysticalagriculture:coal_seeds"]  = 20,
-        ["mysticalagriculture:nature_seeds"] = 5,
-        ["mysticalagriculture:dye_seeds"]    = 5,
-        ["mysticalagriculture:wood_seeds"]   = 6,
+        -- ["mysticalagriculture:coal_seeds"]  = 20,
+        -- ["mysticalagriculture:nature_seeds"] = 5,
+        -- ["mysticalagriculture:dye_seeds"]    = 5,
+        -- ["mysticalagriculture:wood_seeds"]   = 6,
+        ["mysticalagriculture:redstone_seeds"]  = 18,
+        ["mysticalagriculture:gold_seeds"]  = 18
     },
     [3] = {
         ["mysticalagriculture:nether_quartz_seeds"] = 15,
