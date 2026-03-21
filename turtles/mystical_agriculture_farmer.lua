@@ -68,8 +68,11 @@ local FARM_CONFIGS = {
     --     ["mysticalagriculture:water_seeds"] = 9,
     --     ["mysticalagriculture:air_seeds"]   = 9,
     -- },
+    -- [1] = {
+    --     ["mysticalagriculture:deepslate_seeds"]  = 36
+    -- },
     [1] = {
-        ["mysticalagriculture:deepslate_seeds"]  = 36
+        ["mysticalagriculture:nature_seeds"]  = 36
     },
     [2] = {
         -- ["mysticalagriculture:honey_seeds"]  = 20,
