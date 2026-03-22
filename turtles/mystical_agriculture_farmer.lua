@@ -92,7 +92,8 @@ local FARM_CONFIGS = {
     --     ["mysticalagriculture:soularium_seeds"]     = 2,
     -- },
     [3] = {
-        ["mysticalagriculture:redstone_seeds"] = 36
+        ["mysticalagriculture:redstone_seeds"] = 30,
+        ["mysticalagriculture:sulfur_seeds"] = 6
     },
     [4] = {
         ["mysticalagriculture:certus_quartz_seeds"]       = 11,
